@@ -37,3 +37,7 @@ export function validateOwnerConfiguration(value = config) {
 }
 if (config.paypalEnv !== "sandbox")
   throw new Error("RefundDesk only supports PayPal sandbox.");
+/** Sandbox tools (seed, live, snapshot) talk to PayPal; refuse to run them under the replay flag. */
+export function requireSandboxMode(tool: string, value = config) {
+  if (value.demoMode === "replay") throw new Error(`${tool} uses the PayPal sandbox and cannot run with DEMO_MODE=replay.`);
+}

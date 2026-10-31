@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { config } from "../src/server/config.js";
+import { config, requireSandboxMode } from "../src/server/config.js";
 import { Store } from "../src/server/db.js";
 import {
   PayPalClient,
@@ -14,6 +14,7 @@ import { reconcile } from "../src/server/reconcile.js";
 import { emptyFacts, type DeskCase, type Order } from "../src/core/types.js";
 import { redactError } from "../src/server/errors.js";
 
+requireSandboxMode("live");
 const store = new Store(config.dbPath);
 const paypal = new PayPalClient(
   config.paypalClientId,

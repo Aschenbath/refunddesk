@@ -12,7 +12,8 @@ const snapshot = replay ? loadSnapshot() : null;
 if (snapshot) hydrateReplay(store, snapshot);
 const service = new DeskService(
   store,
-  snapshot ? new ReplayPayPalClient(store, snapshot) : new PayPalClient(config.paypalClientId, config.paypalClientSecret),
+  // The replay flag alone picks the payment client; replay never builds a real one.
+  replay ? new ReplayPayPalClient(store, snapshot!) : new PayPalClient(config.paypalClientId, config.paypalClientSecret),
   replay ? { aiMode: "offline" } : {},
 );
 service.recoverInterrupted();

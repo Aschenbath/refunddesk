@@ -9,6 +9,10 @@ describe("saved view state", () => {
     expect(matchesFilterModel({ sender: "Luis Romero", amount: 24, status: "ready" }, model)).toBe(false);
     expect(matchesFilterModel({ sender: "Maya Chen", amount: 24, status: "refunded" }, model)).toBe(false);
   });
+  it("counts an in-range filter the way the grid does, without the endpoints", () => {
+    const model = { amount: { filterType: "number", type: "inRange", filter: 10, filterTo: 20 } };
+    expect([10, 15, 20].map((amount) => matchesFilterModel({ amount }, model))).toEqual([false, true, false]);
+  });
   it("persists state and keeps reset usable when browser storage is blocked", () => {
     const values = new Map<string, string>();
     vi.stubGlobal("localStorage", { getItem: (key: string) => values.get(key), setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key) });

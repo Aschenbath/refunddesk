@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Store } from "../src/server/db.js";
-import { loadSnapshot, hydrateReplay, ReplayPayPalClient } from "../src/server/replay.js";
+import { loadSnapshot, hydrateReplay, parseSnapshot, ReplayPayPalClient } from "../src/server/replay.js";
 import { reconcile } from "../src/server/reconcile.js";
 import { DeskService } from "../src/server/service.js";
 import { emptyFacts } from "../src/core/types.js";
@@ -27,5 +27,12 @@ describe("zero-key replay", () => {
       await expect(paypal.createAndCapture()).rejects.toThrow("unavailable");
       expect(network).not.toHaveBeenCalled();
     } finally { network.mockRestore(); store.close(); }
+  });
+});
+describe("replay snapshot validation", () => {
+  it("refuses snapshots that are null or missing lists instead of falling back to the real client", () => {
+    expect(() => parseSnapshot("null")).toThrow(/valid version 1/);
+    expect(() => parseSnapshot(JSON.stringify({ version: 1, referenceDate: "2026-10-01", orders: [] }))).toThrow(/valid version 1/);
+    expect(loadSnapshot().version).toBe(1);
   });
 });

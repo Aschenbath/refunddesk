@@ -24,6 +24,14 @@ export interface Order {
   deliveredAt: string;
   lines: OrderLine[];
 }
+// A model can return "2026-99-01": the shape matches but no such day exists.
+const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const time = Date.parse(`${value}T00:00:00Z`);
+    return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+  }, "Not a calendar date");
 export const factsSchema = z
   .object({
     damagedItems: z
@@ -44,8 +52,8 @@ export const factsSchema = z
     returnReceived: z.boolean(),
     deliveryDates: z
       .object({
-        promisedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        deliveredAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        promisedAt: calendarDate,
+        deliveredAt: calendarDate,
       })
       .strict()
       .nullable(),

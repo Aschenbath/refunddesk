@@ -4,6 +4,7 @@ import { calculate, businessDaysAfter } from "../src/core/calculator.js";
 import { guard } from "../src/core/guardrails.js";
 import { centsToDecimal, decimalToCents } from "../src/core/money.js";
 import { order, proposal, context } from "./fixtures/domain.js";
+import { factsSchema } from "../src/core/types.js";
 
 describe("policy examples", () => {
   it("refunds damaged items and shipping only when all items are damaged", () => {
@@ -325,4 +326,25 @@ describe("acceptance properties", () => {
         expect(decimalToCents(centsToDecimal(cents))).toBe(cents);
       }),
     ));
+});
+
+describe("impossible model dates", () => {
+  const late = {
+    ...context.facts,
+    deliveryDates: { promisedAt: "2026-99-01", deliveredAt: "2026-09-22" },
+  };
+  it("are rejected by the facts schema", () => {
+    expect(factsSchema.safeParse(late).success).toBe(false);
+    expect(
+      factsSchema.safeParse({ ...late, deliveryDates: { promisedAt: "2026-02-30", deliveredAt: "2026-09-22" } }).success,
+    ).toBe(false);
+    expect(
+      factsSchema.safeParse({ ...late, deliveryDates: { promisedAt: "2026-09-07", deliveredAt: "2026-09-22" } }).success,
+    ).toBe(true);
+  });
+  it("block the case instead of throwing when already stored", () => {
+    const check = guard({ ...context, proposal: { ...context.proposal, policy_clause_ids: ["P2.1"] }, facts: late });
+    expect(check.kind).toBe("blocked");
+    expect(check.reasons.join(" ")).toMatch(/could not be calculated/);
+  });
 });

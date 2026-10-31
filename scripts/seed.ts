@@ -1,4 +1,4 @@
-import { config } from "../src/server/config.js";
+import { config, requireSandboxMode } from "../src/server/config.js";
 import { Store } from "../src/server/db.js";
 import { PayPalClient } from "../src/server/paypal.js";
 import { DeskService } from "../src/server/service.js";
@@ -10,6 +10,7 @@ import { emptyFacts } from "../src/core/types.js";
 import { seedCapture, seedRefund } from "../src/server/seed-operations.js";
 import { redactError } from "../src/server/errors.js";
 
+requireSandboxMode("seed");
 const store = new Store(config.dbPath);
 const paypal = new PayPalClient(
   config.paypalClientId,

@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import { agGridChunks } from "./scripts/ag-grid-chunks.js";
 export default defineConfig({
   plugins: [agGridChunks(), react()],
+  // The replay demo must not read .env files, the client included.
+  envDir: process.env.DEMO_MODE === "replay" ? false : undefined,
   build: {
     outDir: "dist/client",
     rolldownOptions: { output: { codeSplitting: {

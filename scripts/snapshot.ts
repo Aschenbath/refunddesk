@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { config } from "../src/server/config.js";
+import { config, requireSandboxMode } from "../src/server/config.js";
 import { Store } from "../src/server/db.js";
 import { PayPalClient, type PayPalCapture, type PayPalRefund } from "../src/server/paypal.js";
 import { DeskService } from "../src/server/service.js";
@@ -10,6 +10,7 @@ import type { DemoSnapshot } from "../src/server/replay.js";
 import { reconcile } from "../src/server/reconcile.js";
 import { redactError } from "../src/server/errors.js";
 
+requireSandboxMode("snapshot");
 const source = new Store(config.dbPath), clean = new Store(":memory:");
 const paypal = new PayPalClient(config.paypalClientId, config.paypalClientSecret);
 const service = new DeskService(clean, paypal, { aiMode: "offline" }, () => EVAL_DATE);

@@ -45,7 +45,8 @@ export function matchesFilterModel(values: Record<string, unknown>, models: Reco
         case "lessThanOrEqual": return number <= from;
         case "greaterThan": return number > from;
         case "greaterThanOrEqual": return number >= from;
-        case "inRange": return number >= from && number <= to;
+        // AG Grid excludes both ends unless inRangeInclusive is set, which this grid never does.
+        case "inRange": return number > from && number < to;
       }
     }
     const text = String(value ?? "").toLowerCase(), filter = String(model.filter ?? "").toLowerCase();

@@ -12,7 +12,15 @@ export interface DemoSnapshot {
   recorded: { captures: PayPalCapture[]; orders: PayPalOrder[]; refunds: PayPalRefund[] };
 }
 export function loadSnapshot(): DemoSnapshot {
-  return JSON.parse(readFileSync("demo/snapshot.json", "utf8"));
+  return parseSnapshot(readFileSync("demo/snapshot.json", "utf8"));
+}
+/** Replay must never fall back to the real client, so a malformed snapshot stops startup. */
+export function parseSnapshot(text: string): DemoSnapshot {
+  const value = JSON.parse(text) as DemoSnapshot | null;
+  const lists = value && [value.orders, value.cases, value.refunds, value.ledger, value.recorded?.captures, value.recorded?.orders, value.recorded?.refunds];
+  if (!value || value.version !== 1 || typeof value.referenceDate !== "string" || !lists!.every(Array.isArray))
+    throw new Error("demo/snapshot.json is not a valid version 1 replay snapshot.");
+  return value;
 }
 export function hydrateReplay(store: Store, snapshot: DemoSnapshot) {
   const shift = Date.parse(new Date().toISOString().slice(0, 10)) - Date.parse(snapshot.referenceDate);

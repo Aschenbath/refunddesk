@@ -47,12 +47,13 @@ export function guard(context: GuardContext): Check {
       reasons.push(
         "These returned units were already refunded in another return case.",
       );
-    const calculation = calculate(
-      order,
-      proposal.policy_clause_ids,
-      facts,
-      context.now,
-    );
+    // Proposed facts are recalculated on every read; bad stored data must block the case, not break the queue.
+    let calculation: { lines: Allocation[]; reasons: string[] };
+    try {
+      calculation = calculate(order, proposal.policy_clause_ids, facts, context.now);
+    } catch (error) {
+      calculation = { lines: [], reasons: [`Facts could not be calculated (${(error as Error).message}); correct them before approval.`] };
+    }
     reasons.push(...calculation.reasons);
     lines = calculation.lines.map((line) => ({
       ...line,
