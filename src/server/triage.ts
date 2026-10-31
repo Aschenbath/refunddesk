@@ -99,8 +99,9 @@ export async function validatedTriage(
     try {
       const result = proposalSchema.safeParse(await generate(attempt));
       if (result.success) return result.data;
-    } catch {
-      /* Retry once, then hand over to a human. */
+    } catch (error) {
+      // Retry once, then hand over to a human.
+      console.warn(`Triage attempt ${attempt + 1} failed: ${(error as Error).message.slice(0, 300)}`);
     }
   }
   return null;
@@ -124,6 +125,8 @@ export async function triage(
     name: "refunddesk",
     baseURL: config.aiBaseUrl,
     apiKey: config.aiApiKey,
+    // Without this the SDK sends plain JSON mode and the model invents its own field names.
+    supportsStructuredOutputs: true,
   });
   return validatedTriage(async (attempt) => {
     const result = await generateText({
