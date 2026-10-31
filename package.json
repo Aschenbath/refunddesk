@@ -1,0 +1,43 @@
+{
+  "name": "refunddesk",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --import ./scripts/register.mjs scripts/dev.ts",
+    "dev:server": "node --watch --import ./scripts/register.mjs src/server/index.ts",
+    "seed": "node --import ./scripts/register.mjs scripts/seed.ts",
+    "test": "vitest run",
+    "test:live": "node --import ./scripts/register.mjs scripts/live.ts",
+    "verify:seeded": "node --import ./scripts/register.mjs scripts/verify-seeded.ts",
+    "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json",
+    "start": "node dist/server/src/server/index.js",
+    "check:toolkit": "node --import ./scripts/register.mjs scripts/check-toolkit.ts"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.82",
+    "@hono/node-server": "^2.1.5",
+    "@paypal/agent-toolkit": "^1.11.0",
+    "ag-grid-community": "^36.2.0",
+    "ag-grid-react": "^36.2.0",
+    "ai": "^7.0.159",
+    "hono": "^4.13.14",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "fast-check": "^4.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

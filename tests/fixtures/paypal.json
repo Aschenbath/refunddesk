@@ -1,0 +1,41 @@
+{
+  "token": {
+    "access_token": "fixture-token",
+    "expires_in": 32400,
+    "token_type": "Bearer"
+  },
+  "order": {
+    "id": "5O190127TN364715T",
+    "status": "COMPLETED",
+    "purchase_units": [
+      {
+        "payments": {
+          "captures": [
+            {
+              "id": "3C679366HH908993F",
+              "status": "COMPLETED",
+              "amount": { "currency_code": "USD", "value": "56.00" }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "approvedOrder": { "id": "5O190127TN364715T", "status": "APPROVED" },
+  "capture": {
+    "id": "3C679366HH908993F",
+    "status": "PARTIALLY_REFUNDED",
+    "amount": { "currency_code": "USD", "value": "56.00" }
+  },
+  "refund": {
+    "id": "1JU08902781691411",
+    "status": "COMPLETED",
+    "amount": { "currency_code": "USD", "value": "8.00" }
+  },
+  "error": {
+    "name": "UNPROCESSABLE_ENTITY",
+    "message": "The requested action could not be performed.",
+    "details": [{ "issue": "REFUND_AMOUNT_EXCEEDED" }],
+    "debug_id": "fixture-debug-id"
+  }
+}

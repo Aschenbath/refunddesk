@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: refunddesk
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: refunddesk-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 24.18.0
+      - key: PORT
+        value: 15480
+      - key: DB_PATH
+        value: /var/data/refunddesk.sqlite
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: AI_MODE
+        value: offline
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false

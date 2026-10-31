@@ -1,0 +1,49 @@
+{
+  "note": "Reduced real sandbox GET responses. Tokens, credentials and personal fields are excluded.",
+  "capture": {
+    "id": "2RL37658R48590327",
+    "status": "PARTIALLY_REFUNDED",
+    "amount": {
+      "currency_code": "USD",
+      "value": "36.00"
+    }
+  },
+  "refund": {
+    "id": "17M50199764507444",
+    "status": "COMPLETED",
+    "amount": {
+      "currency_code": "USD",
+      "value": "8.00"
+    }
+  },
+  "order": {
+    "id": "9TN56677B32387716",
+    "status": "COMPLETED",
+    "purchase_units": [
+      {
+        "payments": {
+          "captures": [
+            {
+              "id": "2RL37658R48590327",
+              "status": "PARTIALLY_REFUNDED",
+              "amount": {
+                "currency_code": "USD",
+                "value": "36.00"
+              }
+            }
+          ],
+          "refunds": [
+            {
+              "id": "17M50199764507444",
+              "status": "COMPLETED",
+              "amount": {
+                "currency_code": "USD",
+                "value": "8.00"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
