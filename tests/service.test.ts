@@ -4,10 +4,20 @@ import { DeskService } from "../src/server/service.js";
 import { createApp } from "../src/server/app.js";
 import { PayPalClient } from "../src/server/paypal.js";
 import { validatedTriage, readonlyTools } from "../src/server/triage.js";
-import { order, proposal } from "./fixtures/domain.js";
+import { order, proposal, context } from "./fixtures/domain.js";
 import type { DeskCase } from "../src/core/types.js";
 
 const stores: Store[] = [];
+function reviewed(service: DeskService, id = "case1") {
+  const value = service.detail(id);
+  return {
+    revision: value.revision,
+    approvedCents: value.check!.approvedCents,
+  };
+}
+function approvalBody(service: DeskService) {
+  return JSON.stringify(reviewed(service));
+}
 afterEach(() => {
   for (const store of stores.splice(0)) store.close();
 });
@@ -30,7 +40,20 @@ function setup() {
     getOrder: vi.fn(async () => ({
       id: "ORDER",
       status: "COMPLETED",
-      purchase_units: [{ payments: { refunds: refunded ? [refund] : [] } }],
+      purchase_units: [
+        {
+          payments: {
+            captures: [
+              {
+                id: store.getOrder(order.id)!.captureId,
+                status: "COMPLETED",
+                amount: { value: "56.00", currency_code: "USD" },
+              },
+            ],
+            refunds: refunded ? [refund] : [],
+          },
+        },
+      ],
     })),
     getRefund: vi.fn(async () => refund),
     refund: vi.fn(async () => {
@@ -40,6 +63,7 @@ function setup() {
   };
   const value: DeskCase = {
     id: "case1",
+    revision: 1,
     sender: "Maya Chen",
     email: order.email,
     subject: "Broken mugs",
@@ -48,7 +72,8 @@ function setup() {
     status: "ready",
     orderId: order.id,
     proposal,
-    facts: { damagedLineIds: ["mug"], hasDamageEvidence: true },
+    proposedFacts: context.facts,
+    confirmedFacts: context.facts,
     approvedCents: 800,
     replyDraft: "",
     replySent: false,
@@ -59,13 +84,25 @@ function setup() {
   };
   store.saveCase(value);
   const service = new DeskService(store, paypal as unknown as PayPalClient);
-  return { store, service, paypal, app: createApp(service), value };
+  return {
+    store,
+    service,
+    paypal,
+    app: createApp(service, {
+      ownerPassword: "",
+      nodeEnv: "test",
+      publicOrigin: "",
+      getIp: () => "127.0.0.1",
+    }),
+    value,
+  };
 }
 describe("approval API and persistence", () => {
   it("approves, reconciles, and blocks a second approval without a second PayPal call", async () => {
-    const { app, paypal } = setup();
+    const { app, paypal, service } = setup();
     const response = await app.request("/api/cases/case1/approve", {
       method: "POST",
+      body: approvalBody(service),
     });
     expect(response.status).toBe(200);
     expect((await response.json()).ledger).toMatchObject({
@@ -80,16 +117,26 @@ describe("approval API and persistence", () => {
       kind: "adjusted",
     });
     expect(
-      (await app.request("/api/cases/case1/approve", { method: "POST" }))
-        .status,
+      (
+        await app.request("/api/cases/case1/approve", {
+          method: "POST",
+          body: approvalBody(service),
+        })
+      ).status,
     ).toBe(409);
     expect(paypal.refund).toHaveBeenCalledTimes(1);
   });
   it("claims concurrent approvals atomically", async () => {
-    const { app, paypal } = setup();
+    const { app, paypal, service } = setup();
     const responses = await Promise.all([
-      app.request("/api/cases/case1/approve", { method: "POST" }),
-      app.request("/api/cases/case1/approve", { method: "POST" }),
+      app.request("/api/cases/case1/approve", {
+        method: "POST",
+        body: approvalBody(service),
+      }),
+      app.request("/api/cases/case1/approve", {
+        method: "POST",
+        body: approvalBody(service),
+      }),
     ]);
     expect(responses.map((response) => response.status).sort()).toEqual([
       200, 409,
@@ -107,8 +154,8 @@ describe("approval API and persistence", () => {
         : "COMPLETED",
       amount: { value: "56.00", currency_code: "USD" },
     }));
-    await first.service.approve("case1");
-    await second.service.approve("case1");
+    await first.service.approve("case1", reviewed(first.service));
+    await second.service.approve("case1", reviewed(second.service));
     expect(first.store.getAttempt("case1")?.requestId).not.toBe(
       second.store.getAttempt("case1")?.requestId,
     );
@@ -120,15 +167,19 @@ describe("approval API and persistence", () => {
       service.edit("case1", { replyDraft: "Updated by the owner" });
       return original();
     });
-    await service.approve("case1");
+    await service.approve("case1", reviewed(service));
     expect(store.getCase("case1")?.replyDraft).toBe("Updated by the owner");
   });
   it("retries an uncertain outcome with the original amount and key and rejects edits", async () => {
-    const { app, store, paypal } = setup();
+    const { app, store, paypal, service } = setup();
     paypal.refund.mockRejectedValueOnce(new Error("Connection lost"));
     expect(
-      (await app.request("/api/cases/case1/approve", { method: "POST" }))
-        .status,
+      (
+        await app.request("/api/cases/case1/approve", {
+          method: "POST",
+          body: approvalBody(service),
+        })
+      ).status,
     ).toBe(500);
     const attempt = store.getAttempt("case1")!;
     expect(attempt.state).toBe("uncertain");
@@ -142,8 +193,12 @@ describe("approval API and persistence", () => {
       ).status,
     ).toBe(409);
     expect(
-      (await app.request("/api/cases/case1/approve", { method: "POST" }))
-        .status,
+      (
+        await app.request("/api/cases/case1/approve", {
+          method: "POST",
+          body: approvalBody(service),
+        })
+      ).status,
     ).toBe(200);
     expect(paypal.refund.mock.calls[0]).toEqual(paypal.refund.mock.calls[1]);
     expect(store.getAttempt("case1")?.requestId).toBe(attempt.requestId);
@@ -166,8 +221,8 @@ describe("approval API and persistence", () => {
         amount: { value: "56.00", currency_code: "USD" },
       };
     });
-    await expect(service.approve(value.id)).rejects.toThrow(
-      "Order changed during reconciliation",
+    await expect(service.approve(value.id, reviewed(service))).rejects.toThrow(
+      "This case changed; review again",
     );
     expect(paypal.refund).not.toHaveBeenCalled();
   });
@@ -189,6 +244,17 @@ describe("approval API and persistence", () => {
   it("does not let duplicate override bypass an in-flight order lock", async () => {
     const { service, store, value } = setup();
     store.saveAttempt({
+      id: "other-key",
+      revision: value.revision,
+      snapshot: {
+        revision: value.revision,
+        amountCents: 100,
+        allocations: [],
+        facts: context.facts,
+        clauseIds: ["P1.1"],
+        order,
+        duplicateOverride: null,
+      },
       caseId: "other",
       orderId: order.id,
       requestId: "other-key",
@@ -202,7 +268,7 @@ describe("approval API and persistence", () => {
       ...value,
       duplicateOverride: "Confirmed separate item damage",
     });
-    await expect(service.approve(value.id)).rejects.toThrow(
+    await expect(service.approve(value.id, reviewed(service))).rejects.toThrow(
       "processing or unresolved",
     );
   });
@@ -219,6 +285,13 @@ describe("approval API and persistence", () => {
       purchase_units: [
         {
           payments: {
+            captures: [
+              {
+                id: "CAPTURE",
+                status: "COMPLETED",
+                amount: { value: "56.00", currency_code: "USD" },
+              },
+            ],
             refunds: [
               {
                 id: "EXTERNAL",
@@ -235,7 +308,7 @@ describe("approval API and persistence", () => {
       status: "COMPLETED",
       amount: { value: "8.00", currency_code: "USD" },
     });
-    await expect(service.approve("case1")).rejects.toThrow(
+    await expect(service.approve("case1", reviewed(service))).rejects.toThrow(
       "unallocated refund",
     );
     expect(paypal.refund).not.toHaveBeenCalled();
@@ -243,6 +316,17 @@ describe("approval API and persistence", () => {
   it("requires manual review when an uncertain request is too old to retry", async () => {
     const { service, store } = setup();
     store.saveAttempt({
+      id: "old-key",
+      revision: 1,
+      snapshot: {
+        revision: 1,
+        amountCents: 800,
+        allocations: [{ item: "mug", cents: 800 }],
+        facts: context.facts,
+        clauseIds: ["P1.1"],
+        order,
+        duplicateOverride: null,
+      },
       caseId: "case1",
       orderId: order.id,
       requestId: "old-key",
@@ -252,7 +336,9 @@ describe("approval API and persistence", () => {
       state: "uncertain",
       createdAt: "2020-01-01T00:00:00Z",
     });
-    await expect(service.approve("case1")).rejects.toThrow("over an hour old");
+    await expect(service.approve("case1", reviewed(service))).rejects.toThrow(
+      "over an hour old",
+    );
   });
   it("rejects cross-origin mutations and supports atomic JSON inbox import", async () => {
     const { app, store } = setup();

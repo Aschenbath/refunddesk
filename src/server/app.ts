@@ -6,6 +6,20 @@ import { policies } from "../core/policies.js";
 import { DeskError, DeskService } from "./service.js";
 import { PayPalError } from "./paypal.js";
 import { ledgerRow, reconcile } from "./reconcile.js";
+import { factsSchema } from "../core/types.js";
+import { redactError } from "./errors.js";
+import {
+  ownerConfig,
+  hasSession,
+  peerIp,
+  signIn,
+  signOut,
+  passwordMatches,
+  RateLimits,
+  boundedBody,
+  BodyLimitError,
+  type OwnerConfig,
+} from "./auth.js";
 
 const messageSchema = z
   .object({
@@ -20,17 +34,20 @@ const editSchema = z
     orderId: z.string().min(1).optional(),
     approvedCents: z.number().int().positive().optional(),
     clauseIds: z.array(z.string()).max(8).optional(),
-    damagedLineIds: z.array(z.string()).max(30).optional(),
-    hasDamageEvidence: z.boolean().optional(),
-    returnReceivedLineIds: z.array(z.string()).max(30).optional(),
+    confirmedFacts: factsSchema.optional(),
     duplicateOverride: z.string().min(8).max(1000).nullable().optional(),
     replyDraft: z.string().max(8000).optional(),
     replySent: z.boolean().optional(),
   })
   .strict();
 
-export function createApp(service: DeskService) {
-  const app = new Hono();
+export function createApp(
+  service: DeskService,
+  options: Partial<OwnerConfig> = {},
+) {
+  const auth = ownerConfig(options);
+  const limits = new RateLimits();
+  const app = new Hono<{ Variables: { rawBody: string } }>();
   app.onError((error, c) => {
     if (error instanceof PayPalError)
       return c.json({ error: error.toJSON() }, 502);
@@ -45,31 +62,89 @@ export function createApp(service: DeskService) {
       {
         error: {
           message:
-            error instanceof SyntaxError
-              ? "Invalid JSON"
-              : error.message || "Request failed",
+            error instanceof SyntaxError ? "Invalid JSON" : redactError(error),
         },
       },
       error instanceof SyntaxError ? 400 : 500,
     );
   });
   app.use("/api/*", async (c, next) => {
-    // Single local owner. Reject browser cross-origin mutations; deployed auth is explicitly out of scope.
+    c.header("Cache-Control", "no-store");
     const origin = c.req.header("origin");
+    const webhook = c.req.path === "/api/webhooks/paypal";
+    const expectedOrigin =
+      auth.publicOrigin ||
+      (auth.nodeEnv !== "production"
+        ? `${new URL(c.req.url).protocol}//${c.req.header("host") || new URL(c.req.url).host}`
+        : "");
     if (
       !["GET", "HEAD"].includes(c.req.method) &&
-      c.req.path !== "/api/webhooks/paypal" &&
+      !webhook &&
       origin &&
-      origin !== new URL(c.req.url).origin &&
-      !["http://localhost:15481", "http://127.0.0.1:15481"].includes(origin)
+      origin !== expectedOrigin
     )
       return c.json(
         { error: { message: "Cross-origin request rejected" } },
         403,
       );
-    if (Number(c.req.header("content-length") || 0) > 1000000)
-      return c.json({ error: { message: "Request is too large" } }, 413);
+    const publicRead =
+      c.req.method === "GET" &&
+      ["/api/health", "/api/policies", "/api/session"].includes(c.req.path);
+    const login = c.req.path === "/api/sign-in" && c.req.method === "POST";
+    if (!webhook && !publicRead && !login && !hasSession(c, auth))
+      return c.json({ error: { message: "Owner sign-in required" } }, 401);
+    const action = login
+      ? "sign-in"
+      : c.req.path === "/api/inbox/import" ||
+          (c.req.path === "/api/cases" && c.req.method === "POST")
+        ? "import"
+        : c.req.path.endsWith("/triage")
+          ? "triage"
+          : null;
+    if (
+      action &&
+      !limits.allow(
+        `${peerIp(c, auth)}:${action}`,
+        action === "sign-in" ? 8 : action === "import" ? 20 : 12,
+      )
+    ) {
+      c.header("Retry-After", "60");
+      return c.json(
+        { error: { message: "Too many requests; try again in a minute" } },
+        429,
+      );
+    }
+    if (!["GET", "HEAD"].includes(c.req.method)) {
+      try {
+        c.set("rawBody", await boundedBody(c.req.raw));
+      } catch (error) {
+        if (error instanceof BodyLimitError)
+          return c.json({ error: { message: error.message } }, 413);
+        throw error;
+      }
+    }
     await next();
+  });
+  app.get("/api/session", (c) =>
+    c.json({
+      authenticated: hasSession(c, auth),
+      passwordRequired: !!auth.ownerPassword,
+    }),
+  );
+  app.post("/api/sign-in", (c) => {
+    const { password } = z
+      .object({ password: z.string().max(1000) })
+      .strict()
+      .parse(JSON.parse(c.get("rawBody")));
+    if (!auth.ownerPassword || !passwordMatches(password, auth.ownerPassword))
+      return c.json({ error: { message: "Incorrect owner password" } }, 401);
+    signIn(c, auth);
+    c.header("Cache-Control", "no-store");
+    return c.json({ authenticated: true });
+  });
+  app.post("/api/sign-out", (c) => {
+    signOut(c);
+    return c.json({ authenticated: false });
   });
   app.get("/api/health", (c) =>
     c.json({ ok: true, aiMode: config.aiMode, environment: "sandbox" }),
@@ -94,14 +169,17 @@ export function createApp(service: DeskService) {
   );
   app.get("/api/cases/:id", (c) => c.json(service.detail(c.req.param("id"))));
   app.post("/api/cases", async (c) =>
-    c.json(service.createMessage(messageSchema.parse(await c.req.json())), 201),
+    c.json(
+      service.createMessage(messageSchema.parse(JSON.parse(c.get("rawBody")))),
+      201,
+    ),
   );
   app.post("/api/inbox/import", async (c) => {
     const inputs = z
       .array(messageSchema)
       .min(1)
       .max(100)
-      .parse(await c.req.json());
+      .parse(JSON.parse(c.get("rawBody")));
     return c.json(
       service.store.transaction(() =>
         inputs.map((input) => service.createMessage(input)),
@@ -111,7 +189,10 @@ export function createApp(service: DeskService) {
   });
   app.patch("/api/cases/:id", async (c) =>
     c.json(
-      service.edit(c.req.param("id"), editSchema.parse(await c.req.json())),
+      service.edit(
+        c.req.param("id"),
+        editSchema.parse(JSON.parse(c.get("rawBody"))),
+      ),
     ),
   );
   app.post("/api/cases/:id/triage", async (c) =>
@@ -126,7 +207,36 @@ export function createApp(service: DeskService) {
     return c.json(results);
   });
   app.post("/api/cases/:id/approve", async (c) =>
-    c.json(await service.approve(c.req.param("id"))),
+    c.json(
+      await service.approve(
+        c.req.param("id"),
+        z
+          .object({
+            revision: z.number().int().positive(),
+            approvedCents: z.number().int().positive(),
+          })
+          .strict()
+          .parse(JSON.parse(c.get("rawBody"))),
+      ),
+    ),
+  );
+  app.post("/api/cases/:id/check-paypal", async (c) =>
+    c.json(await service.checkPayPal(c.req.param("id"))),
+  );
+  app.post("/api/cases/:id/retry-new-id", async (c) =>
+    c.json(
+      await service.retryWithNewId(
+        c.req.param("id"),
+        z
+          .object({
+            confirmed: z.boolean(),
+            reason: z.string().min(8).max(1000),
+            revision: z.number().int().positive(),
+          })
+          .strict()
+          .parse(JSON.parse(c.get("rawBody"))),
+      ),
+    ),
   );
   app.post("/api/cases/:id/reject", (c) =>
     c.json(service.reject(c.req.param("id"))),
@@ -157,6 +267,35 @@ export function createApp(service: DeskService) {
     return c.json(rows);
   });
   app.post("/api/webhooks/paypal", async (c) => {
+    if (!config.webhookId && auth.nodeEnv === "production")
+      return c.json(
+        {
+          error: {
+            message: "PAYPAL_WEBHOOK_ID is required for production webhooks",
+          },
+        },
+        503,
+      );
+    const rawBody = c.get("rawBody");
+    const untouched: unknown = JSON.parse(rawBody);
+    if (!config.webhookId)
+      return c.json({
+        received: true,
+        signatureVerification: "unverified",
+        acted: false,
+      });
+    if (
+      !(await service.paypal.verifyWebhook(
+        c.req.raw.headers,
+        untouched,
+        config.webhookId,
+        rawBody,
+      ))
+    )
+      return c.json(
+        { error: { message: "Invalid PayPal webhook signature" } },
+        401,
+      );
     const event = z
       .object({
         id: z.string(),
@@ -167,7 +306,10 @@ export function createApp(service: DeskService) {
             supplementary_data: z
               .object({
                 related_ids: z
-                  .object({ capture_id: z.string().optional() })
+                  .object({
+                    capture_id: z.string().optional(),
+                    order_id: z.string().optional(),
+                  })
                   .optional(),
               })
               .optional(),
@@ -178,26 +320,20 @@ export function createApp(service: DeskService) {
           .passthrough(),
       })
       .passthrough()
-      .parse(await c.req.json());
-    if (
-      config.webhookId &&
-      !(await service.paypal.verifyWebhook(
-        c.req.raw.headers,
-        event,
-        config.webhookId,
-      ))
-    )
-      return c.json(
-        { error: { message: "Invalid PayPal webhook signature" } },
-        401,
-      );
+      .parse(untouched);
     if (
       service.store.db
         .prepare("SELECT id FROM webhook_events WHERE id=?")
         .get(event.id)
     )
       return c.json({ duplicate: true });
-    if (event.event_type === "PAYMENT.CAPTURE.REFUNDED") {
+    if (
+      [
+        "PAYMENT.CAPTURE.REFUNDED",
+        "PAYMENT.REFUND.PENDING",
+        "PAYMENT.REFUND.FAILED",
+      ].includes(event.event_type)
+    ) {
       const captureId =
         event.resource.supplementary_data?.related_ids?.capture_id ||
         event.resource.links
@@ -205,7 +341,15 @@ export function createApp(service: DeskService) {
           ?.href.match(/captures\/([^/]+)$/)?.[1];
       const order = service.store
         .listOrders()
-        .find((order) => order.captureId === captureId);
+        .find(
+          (order) =>
+            order.captureId === captureId ||
+            order.paypalOrderId ===
+              event.resource.supplementary_data?.related_ids?.order_id ||
+            service.store
+              .listRefunds(order.id)
+              .some((refund) => refund.id === event.resource.id),
+        );
       if (order) await reconcile(service.store, service.paypal, order.id);
     }
     service.store.db
@@ -213,9 +357,7 @@ export function createApp(service: DeskService) {
       .run(event.id);
     return c.json({
       received: true,
-      signatureVerification: config.webhookId
-        ? "verified"
-        : "skipped (local sandbox)",
+      signatureVerification: "verified",
     });
   });
   app.all("/api/*", (c) =>

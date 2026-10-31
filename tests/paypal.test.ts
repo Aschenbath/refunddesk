@@ -72,6 +72,10 @@ describe("PayPal REST fixtures", () => {
       ).toBeTruthy();
     }
     expect(JSON.parse(calls[2][1].body as string).amount.value).toBe("8.00");
+    expect(JSON.parse(calls[2][1].body as string)).toMatchObject({
+      invoice_id: requestId("case-1"),
+      custom_id: requestId("case-1"),
+    });
   });
   it("captures an approved order when direct create did not capture", async () => {
     const { client, fetcher } = mock([
@@ -86,7 +90,7 @@ describe("PayPal REST fixtures", () => {
       (calls[2][1].headers as Record<string, string>)["PayPal-Request-Id"],
     ).toBe("fallback-key-cap");
   });
-  it("surfaces the PayPal name, first issue, debug id and HTTP status", async () => {
+  it("surfaces the error class and HTTP status without provider text", async () => {
     const { client } = mock([fixtures.token, fixtures.error]);
     try {
       await client.refund("capture", 99999, "USD", "key");
@@ -94,9 +98,7 @@ describe("PayPal REST fixtures", () => {
     } catch (error) {
       expect(error).toBeInstanceOf(PayPalError);
       expect((error as PayPalError).toJSON()).toMatchObject({
-        name: "UNPROCESSABLE_ENTITY",
-        issue: "REFUND_AMOUNT_EXCEEDED",
-        debug_id: "fixture-debug-id",
+        name: "PayPalError",
         status: 422,
       });
     }

@@ -1,12 +1,14 @@
-import { randomUUID } from "node:crypto";
 import { config } from "../src/server/config.js";
 import { Store } from "../src/server/db.js";
-import { PayPalClient, requestId } from "../src/server/paypal.js";
+import { PayPalClient } from "../src/server/paypal.js";
 import { DeskService } from "../src/server/service.js";
 import { seededMessages } from "../src/server/fixtures.js";
 import { policies } from "../src/core/policies.js";
 import { reconcile } from "../src/server/reconcile.js";
 import type { DeskCase, Order, OrderLine } from "../src/core/types.js";
+import { emptyFacts } from "../src/core/types.js";
+import { seedCapture, seedRefund } from "../src/server/seed-operations.js";
+import { redactError } from "../src/server/errors.js";
 
 const store = new Store(config.dbPath);
 const paypal = new PayPalClient(
@@ -14,8 +16,16 @@ const paypal = new PayPalClient(
   config.paypalClientSecret,
 );
 const service = new DeskService(store, paypal);
-if (process.argv.includes("--reset")) store.reset();
-const batch = randomUUID().slice(0, 8);
+const batch = store.transaction(() => {
+  if (process.argv.includes("--reset")) {
+    // reset() owns its transaction, so clear the active data here atomically with the new batch.
+    store.db.exec(
+      "DELETE FROM webhook_events; DELETE FROM attempts; DELETE FROM ledger; DELETE FROM refunds; DELETE FROM cases; DELETE FROM orders; DELETE FROM products; DELETE FROM customers; DELETE FROM policies;",
+    );
+    return store.seedBatch(true);
+  }
+  return store.seedBatch();
+});
 const products = [
   ["Pebble Espresso Cup", 1800],
   ["Moss Everyday Mug", 2400],
@@ -54,7 +64,7 @@ const emailFor = (index: number) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()}@example.test`;
 const dateBefore = (days: number) =>
-  new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  new Date(Date.parse(batch.date) - days * 86400000).toISOString().slice(0, 10);
 try {
   products.forEach(([title, price], index) =>
     store.db
@@ -112,18 +122,13 @@ try {
     const cents =
       lines.reduce((sum, line) => sum + line.quantity * line.unitCents, 0) +
       800;
-    const { order: remote, capture } = await paypal.createAndCapture(
-      cents,
-      id,
-      requestId(`seed-${batch}-${id}`),
-    );
-    const order: Order = {
+    const template: Order = {
       id,
       customerId: `customer-${owner + 1}`,
       customerName: names[owner],
       email: emailFor(owner),
-      paypalOrderId: remote.id,
-      captureId: capture.id,
+      paypalOrderId: "",
+      captureId: "",
       currency: "USD",
       capturedCents: cents,
       shippingCents: 800,
@@ -134,24 +139,14 @@ try {
       deliveredAt: dateBefore(index === 8 ? 45 : 3),
       lines,
     };
-    store.saveOrder(order);
-    console.log(`${id}: capture ${capture.id}, $${(cents / 100).toFixed(2)}`);
+    const order = await seedCapture(store, paypal, batch.id, template);
+    console.log(
+      `${id}: order ${order.paypalOrderId}, capture ${order.captureId}, $${(cents / 100).toFixed(2)}`,
+    );
   }
   const partial = store.getOrder("FC-1004")!;
   if (!store.listRefunds(partial.id).length) {
-    const key = requestId(`seed-partial-${partial.captureId}`);
-    const refund = await paypal.refund(partial.captureId, 1200, "USD", key);
-    store.saveRefund({
-      id: refund.id,
-      caseId: null,
-      orderId: partial.id,
-      amountCents: 1200,
-      currency: "USD",
-      status: refund.status,
-      requestId: key,
-      allocations: [{ item: partial.lines[0].id, cents: 1200 }],
-      createdAt: new Date().toISOString(),
-    });
+    const refund = await seedRefund(store, paypal, batch.id, partial, 1200);
     console.log(
       `Already-refunded scenario: ${partial.captureId} / refund ${refund.id} / $12.00`,
     );
@@ -173,6 +168,7 @@ try {
     ].includes(fixture.key);
     const value: DeskCase = {
       id,
+      revision: 1,
       sender: fixture.sender === null ? "Sam" : names[fixture.sender],
       email:
         fixture.sender === null
@@ -184,12 +180,17 @@ try {
       status: "new",
       orderId: order?.id || null,
       proposal: null,
-      facts: {
-        damagedLineIds: damaged
-          ? order?.lines.map((line) => line.id) || []
+      proposedFacts: {
+        ...emptyFacts(),
+        damagedItems: damaged
+          ? order?.lines.map((line) => ({
+              item: line.id,
+              quantity: line.quantity,
+            })) || []
           : [],
         hasDamageEvidence: damaged,
       },
+      confirmedFacts: emptyFacts(),
       approvedCents: null,
       replyDraft: "",
       replySent: false,
@@ -212,6 +213,11 @@ try {
   console.log(
     `Seed complete: ${store.listOrders().length} captured orders; ${store.listCases().length} inbox cases; ledger matches PayPal.`,
   );
+} catch (error) {
+  console.error(
+    `Seed failed: ${redactError(error)}. Re-run without --reset to resume the persisted batch.`,
+  );
+  process.exitCode = 1;
 } finally {
   store.close();
 }

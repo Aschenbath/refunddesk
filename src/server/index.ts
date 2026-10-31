@@ -1,9 +1,10 @@
 import { serve } from "@hono/node-server";
-import { config } from "./config.js";
+import { config, validateOwnerConfiguration } from "./config.js";
 import { Store } from "./db.js";
 import { PayPalClient } from "./paypal.js";
 import { DeskService } from "./service.js";
 import { createApp } from "./app.js";
+validateOwnerConfiguration();
 const store = new Store(config.dbPath);
 const service = new DeskService(
   store,

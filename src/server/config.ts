@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 if (existsSync(".env")) process.loadEnvFile(".env");
 export const config = {
+  nodeEnv: process.env.NODE_ENV || "development",
+  ownerPassword: process.env.OWNER_PASSWORD || "",
+  sessionSecret: process.env.SESSION_SECRET || randomBytes(32).toString("hex"),
+  publicOrigin: process.env.PUBLIC_ORIGIN || "",
   port: Number(process.env.PORT || 15480),
   dbPath: process.env.DB_PATH || "data/refunddesk.sqlite",
   paypalClientId: process.env.PAYPAL_CLIENT_ID || "",
@@ -12,5 +17,22 @@ export const config = {
   aiApiKey: process.env.AI_API_KEY || "",
   aiModel: process.env.AI_MODEL || "",
 };
+export function validateOwnerConfiguration(value = config) {
+  if (value.nodeEnv === "production" && !value.ownerPassword)
+    throw new Error(
+      "OWNER_PASSWORD must be set in production. RefundDesk refuses to start without owner authentication.",
+    );
+  if (value.nodeEnv === "production" && !value.publicOrigin)
+    throw new Error(
+      "PUBLIC_ORIGIN must be set to the public HTTPS origin in production.",
+    );
+  if (
+    value.publicOrigin &&
+    new URL(value.publicOrigin).origin !== value.publicOrigin
+  )
+    throw new Error(
+      "PUBLIC_ORIGIN must be an origin without a path or trailing slash.",
+    );
+}
 if (config.paypalEnv !== "sandbox")
   throw new Error("RefundDesk only supports PayPal sandbox.");

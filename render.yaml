@@ -13,6 +13,14 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 24.18.0
+      - key: NODE_ENV
+        value: production
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_ORIGIN
+        sync: false
       - key: PORT
         value: 15480
       - key: DB_PATH

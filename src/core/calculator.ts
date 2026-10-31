@@ -37,22 +37,43 @@ export function calculate(
   const add = (item: string, cents: number) => amounts.set(item, cents);
   if (clauses[0].family === "damage") {
     if (!has("P1.1")) reasons.push("P1.2 requires P1.1.");
-    if (!facts.hasDamageEvidence || !facts.damagedLineIds.length)
+    if (!facts.hasDamageEvidence || !facts.damagedItems.length)
       reasons.push(
         "A photo or clear damage description and affected items are required.",
       );
     if (
-      facts.damagedLineIds.some(
-        (id) => !order.lines.some((line) => line.id === id),
-      )
+      facts.damagedItems.some(
+        ({ item, quantity }) =>
+          !order.lines.some(
+            (line) =>
+              line.id === item &&
+              Number.isSafeInteger(quantity) &&
+              quantity > 0 &&
+              quantity <= line.quantity,
+          ),
+      ) ||
+      new Set(facts.damagedItems.map((item) => item.item)).size !==
+        facts.damagedItems.length
     )
       reasons.push("An affected item is not in this order.");
     if (!reasons.length) {
       for (const line of order.lines)
-        if (facts.damagedLineIds.includes(line.id))
-          add(line.id, line.unitCents * line.quantity);
+        if (facts.damagedItems.some((item) => item.item === line.id))
+          add(
+            line.id,
+            line.unitCents *
+              facts.damagedItems.find((item) => item.item === line.id)!
+                .quantity,
+          );
       if (has("P1.2")) {
-        if (order.lines.every((line) => facts.damagedLineIds.includes(line.id)))
+        if (
+          order.lines.every((line) =>
+            facts.damagedItems.some(
+              (item) =>
+                item.item === line.id && item.quantity === line.quantity,
+            ),
+          )
+        )
           add("shipping", order.shippingCents);
         else
           reasons.push(
@@ -62,7 +83,15 @@ export function calculate(
     }
   }
   if (clauses[0].family === "late") {
-    const late = businessDaysAfter(order.promisedAt, order.deliveredAt);
+    if (!facts.deliveryDates)
+      return {
+        lines: [],
+        reasons: ["Confirm the promised and delivered dates before approval."],
+      };
+    const late = businessDaysAfter(
+      facts.deliveryDates.promisedAt,
+      facts.deliveryDates.deliveredAt,
+    );
     if (!has("P2.1")) reasons.push("P2.2 requires P2.1.");
     if (late <= clause("P2.1").businessDays)
       reasons.push(
@@ -86,9 +115,16 @@ export function calculate(
     }
   }
   if (clauses[0].family === "return") {
+    if (!facts.deliveryDates)
+      return {
+        lines: [],
+        reasons: ["Confirm the delivery dates before approval."],
+      };
     const age = Math.floor(
       (Date.parse(`${now.slice(0, 10)}T00:00:00Z`) -
-        Date.parse(`${order.deliveredAt.slice(0, 10)}T00:00:00Z`)) /
+        Date.parse(
+          `${facts.deliveryDates.deliveredAt.slice(0, 10)}T00:00:00Z`,
+        )) /
         day,
     );
     if (!Number.isFinite(age) || age < 0 || age > clause("P3.1").days)
@@ -96,20 +132,33 @@ export function calculate(
         `Return must be within ${clause("P3.1").days} days of delivery.`,
       );
     if (!has("P3.1")) reasons.push("No eligible return clause cited.");
-    const returned = order.lines.filter(
-      (line) => line.returnReceived && !line.sale,
-    );
-    if (!returned.length)
+    const returned = facts.returnedItems.map((item) => ({
+      ...item,
+      line: order.lines.find((line) => line.id === item.item),
+    }));
+    if (
+      !facts.returnReceived ||
+      !returned.length ||
+      returned.some(
+        ({ line, quantity }) =>
+          !line ||
+          line.sale ||
+          !Number.isSafeInteger(quantity) ||
+          quantity <= 0 ||
+          quantity > line.quantity,
+      ) ||
+      new Set(returned.map((item) => item.item)).size !== returned.length
+    )
       reasons.push(
         "Return has not been received, or all returned items were on sale.",
       );
     if (!reasons.length) {
       let deduction: number = clause("P3.1").deductionCents;
-      for (const line of returned) {
-        const total = line.quantity * line.unitCents;
+      for (const { line, quantity } of returned) {
+        const total = quantity * line!.unitCents;
         const taken = Math.min(total, deduction);
         deduction -= taken;
-        add(line.id, total - taken);
+        add(line!.id, total - taken);
       }
     }
   }

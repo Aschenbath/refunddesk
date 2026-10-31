@@ -24,6 +24,41 @@ export interface Order {
   deliveredAt: string;
   lines: OrderLine[];
 }
+export const factsSchema = z
+  .object({
+    damagedItems: z
+      .array(
+        z
+          .object({ item: z.string(), quantity: z.number().int().positive() })
+          .strict(),
+      )
+      .max(30),
+    hasDamageEvidence: z.boolean(),
+    returnedItems: z
+      .array(
+        z
+          .object({ item: z.string(), quantity: z.number().int().positive() })
+          .strict(),
+      )
+      .max(30),
+    returnReceived: z.boolean(),
+    deliveryDates: z
+      .object({
+        promisedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        deliveredAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type Facts = z.infer<typeof factsSchema>;
+export const emptyFacts = (): Facts => ({
+  damagedItems: [],
+  hasDamageEvidence: false,
+  returnedItems: [],
+  returnReceived: false,
+  deliveryDates: null,
+});
 export const proposalSchema = z
   .object({
     matched_order_id: z.string().nullable(),
@@ -46,13 +81,10 @@ export const proposalSchema = z
     customer_reply_draft: z.string().max(8000),
     confidence: z.number().min(0).max(1),
     needs_human_reason: z.string().nullable(),
+    proposed_facts: factsSchema.optional(),
   })
   .strict();
 export type Proposal = z.infer<typeof proposalSchema>;
-export interface Facts {
-  damagedLineIds: string[];
-  hasDamageEvidence: boolean;
-}
 export interface Allocation {
   item: string;
   cents: number;
@@ -69,6 +101,7 @@ export interface GuardContext {
   overrideDuplicate?: boolean;
   approvedCents?: number;
   unallocatedRefund?: boolean;
+  refundedQuantities?: Record<string, number>;
 }
 export interface Check {
   kind: "pass" | "adjusted" | "blocked";
@@ -84,11 +117,13 @@ export type CaseStatus =
   | "ready"
   | "needs_human"
   | "processing"
+  | "pending"
   | "refunded"
   | "rejected"
   | "failed";
 export interface DeskCase {
   id: string;
+  revision: number;
   sender: string;
   email: string;
   subject: string;
@@ -97,7 +132,8 @@ export interface DeskCase {
   status: CaseStatus;
   orderId: string | null;
   proposal: Proposal | null;
-  facts: Facts;
+  proposedFacts: Facts;
+  confirmedFacts: Facts;
   approvedCents: number | null;
   replyDraft: string;
   replySent: boolean;
@@ -110,6 +146,14 @@ export interface DeskCase {
   order?: Order | null;
   candidates?: Order[];
   refunds?: Refund[];
+  ambiguous?: boolean;
+  attempt?: {
+    id: string;
+    state: string;
+    createdAt: string;
+    amountCents: number;
+    retryAllowed: boolean;
+  } | null;
 }
 export interface Refund {
   id: string;
@@ -121,6 +165,8 @@ export interface Refund {
   requestId: string;
   allocations: Allocation[];
   createdAt: string;
+  returnFeeCaseId?: string | null;
+  returnedItems?: Facts["returnedItems"];
 }
 export interface LedgerRow {
   orderId: string;
@@ -137,4 +183,6 @@ export interface LedgerRow {
   checkedAt: string | null;
   error: string | null;
   refundIds: string[];
+  pendingCents: number;
+  unexpectedRefundIds: string[];
 }

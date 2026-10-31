@@ -35,6 +35,18 @@ export function guard(context: GuardContext): Check {
   if (order && proposal.currency !== order.currency)
     reasons.push("Proposal currency differs from the capture currency.");
   if (order) {
+    if (
+      proposal.policy_clause_ids.includes("P3.1") &&
+      facts.returnedItems.some(
+        (item) =>
+          item.quantity >
+          (order.lines.find((line) => line.id === item.item)?.quantity || 0) -
+            (context.refundedQuantities?.[item.item] || 0),
+      )
+    )
+      reasons.push(
+        "These returned units were already refunded in another return case.",
+      );
     const calculation = calculate(
       order,
       proposal.policy_clause_ids,
@@ -44,7 +56,30 @@ export function guard(context: GuardContext): Check {
     reasons.push(...calculation.reasons);
     lines = calculation.lines.map((line) => ({
       ...line,
-      cents: Math.max(0, line.cents - (context.refundedByLine[line.item] ?? 0)),
+      cents: proposal.policy_clause_ids.includes("P3.1")
+        ? Math.max(
+            0,
+            Math.min(
+              line.cents,
+              (() => {
+                const item = order.lines.find((item) => item.id === line.item)!;
+                return Math.min(
+                  item.unitCents *
+                    Math.max(
+                      0,
+                      item.quantity -
+                        (context.refundedQuantities?.[line.item] || 0),
+                    ),
+                  Math.max(
+                    0,
+                    item.unitCents * item.quantity -
+                      (context.refundedByLine[line.item] || 0),
+                  ),
+                );
+              })(),
+            ),
+          )
+        : Math.max(0, line.cents - (context.refundedByLine[line.item] ?? 0)),
     }));
     lines = distribute(
       lines,

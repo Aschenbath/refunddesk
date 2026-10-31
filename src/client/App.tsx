@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DeskCase, LedgerRow, Order } from "../core/types.js";
-import { api, money } from "./api.js";
+import { api, money, ApiError } from "./api.js";
 import { QueueGrid, LedgerGrid } from "./Grid.js";
 import { Drawer } from "./Drawer.js";
 
@@ -22,6 +22,8 @@ function Leaf() {
   );
 }
 export function App() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [password, setPassword] = useState("");
   const [view, setView] = useState<"queue" | "ledger" | "inbox">("queue");
   const [cases, setCases] = useState<DeskCase[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
@@ -54,12 +56,17 @@ export function App() {
     setOrders(nextOrders);
   }, []);
   useEffect(() => {
-    void Promise.all([
-      refresh(),
-      api<{ aiMode: string }>("/health").then((result) =>
-        setAiMode(result.aiMode),
-      ),
-    ])
+    void api<{ authenticated: boolean }>("/session")
+      .then(async (session) => {
+        setAuthenticated(session.authenticated);
+        if (!session.authenticated) return;
+        await Promise.all([
+          refresh(),
+          api<{ aiMode: string }>("/health").then((result) =>
+            setAiMode(result.aiMode),
+          ),
+        ]);
+      })
       .catch((error) => setError(error.message))
       .finally(() => setLoading(false));
   }, [refresh]);
@@ -77,6 +84,13 @@ export function App() {
         setNotice(message);
         return true;
       } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          setAuthenticated(false);
+          setCases([]);
+          setOrders([]);
+          setLedger([]);
+          setSelected(null);
+        }
         setError(
           error instanceof Error ? error.message : "Something went wrong",
         );
@@ -110,7 +124,10 @@ export function App() {
   const current = cases.find((value) => value.id === selected);
   const ready = cases.filter(
     (value) =>
-      !["refunded", "rejected", "processing"].includes(value.status) &&
+      !["refunded", "rejected", "processing", "pending"].includes(
+        value.status,
+      ) &&
+      !value.attempt &&
       value.check?.kind !== "blocked" &&
       value.proposal,
   ).length;
@@ -127,26 +144,101 @@ export function App() {
     setSelected(null);
     setNotice("");
   };
-  const action = (action: string) => {
+  const action = (action: string, body?: unknown) => {
     if (!selected) return;
     void run(
       async () => {
         const result = await api<{ reconciliationError?: string }>(
           `/cases/${selected}/${action}`,
           "POST",
+          body,
         );
         if (result.reconciliationError)
           throw new Error(
             `Refund recorded. Reconciliation needs a retry: ${result.reconciliationError}`,
           );
       },
-      action === "approve"
-        ? "Refund recorded. The ledger has been checked against PayPal."
-        : action === "reject"
-          ? "Case rejected. No payment was made."
-          : "Triage complete. Review the proposal.",
+      action === "approve" || action === "retry-new-id"
+        ? "PayPal response recorded. Check the case and ledger for its status."
+        : action === "check-paypal"
+          ? "PayPal checked. Review the recovery result."
+          : action === "reject"
+            ? "Case rejected. No payment was made."
+            : "Triage complete. Review the proposal.",
     );
   };
+  if (authenticated === null)
+    return (
+      <div className="signin-page">
+        <div className="loading-state">Loading owner workspace…</div>
+      </div>
+    );
+  if (!authenticated)
+    return (
+      <div className="signin-page">
+        <div className="signin-intro">
+          <span className="brand-symbol">
+            <Leaf />
+          </span>
+          <span className="eyebrow">Fernleaf Ceramics · Customer care</span>
+          <h1>
+            A considered way
+            <br />
+            to make it right.
+          </h1>
+          <p>
+            Review the facts. Make a fair decision.
+            <br />
+            Keep every refund accounted for.
+          </p>
+        </div>
+        <form
+          className="signin-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            setError("");
+            void api("/sign-in", "POST", { password })
+              .then(async () => {
+                setPassword("");
+                setAuthenticated(true);
+                await refresh();
+                const health = await api<{ aiMode: string }>("/health");
+                setAiMode(health.aiMode);
+              })
+              .catch((error) => setError(error.message))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <span className="eyebrow">Owner workspace</span>
+          <h2>Welcome to RefundDesk.</h2>
+          <p>Sign in to review requests and manage refunds.</p>
+          <label>
+            Owner password
+            <input
+              type="password"
+              autoComplete="current-password"
+              autoFocus
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="button primary full" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+          <small>
+            <span className="sandbox">● PayPal sandbox</span> · Fernleaf
+            Ceramics
+          </small>
+        </form>
+      </div>
+    );
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -192,6 +284,21 @@ export function App() {
             Fernleaf Ceramics<small>Owner workspace</small>
           </span>
           <span className="merchant-avatar">FC</span>
+          <button
+            className="text-button"
+            onClick={() => {
+              void api("/sign-out", "POST").then(() => {
+                setAuthenticated(false);
+                setCases([]);
+                setOrders([]);
+                setLedger([]);
+                setSelected(null);
+                setError("");
+              });
+            }}
+          >
+            Sign out
+          </button>
         </div>
       </header>
       <main>

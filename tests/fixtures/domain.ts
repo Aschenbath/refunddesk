@@ -1,4 +1,9 @@
-import type { GuardContext, Order, Proposal } from "../../src/core/types.js";
+import {
+  emptyFacts,
+  type GuardContext,
+  type Order,
+  type Proposal,
+} from "../../src/core/types.js";
 export const order: Order = {
   id: "FC-1001",
   customerId: "c1",
@@ -42,7 +47,17 @@ export const proposal: Proposal = {
 export const context: GuardContext = {
   order,
   proposal,
-  facts: { damagedLineIds: ["mug"], hasDamageEvidence: true },
+  facts: {
+    ...emptyFacts(),
+    damagedItems: [{ item: "mug", quantity: 2 }],
+    hasDamageEvidence: true,
+    returnedItems: [{ item: "mug", quantity: 2 }],
+    returnReceived: true,
+    deliveryDates: {
+      promisedAt: order.promisedAt,
+      deliveredAt: order.deliveredAt,
+    },
+  },
   now: "2026-10-20",
   refundedCents: 0,
   refundedByLine: {},

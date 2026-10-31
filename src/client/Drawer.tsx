@@ -3,6 +3,7 @@ import type { DeskCase, Order } from "../core/types.js";
 import { policies } from "../core/policies.js";
 import { money, parseAmount } from "./api.js";
 import { Chip } from "./Grid.js";
+import { FactConfirmation } from "./FactConfirmation.js";
 
 function Message({ text, spans }: { text: string; spans: string[] }) {
   const valid = [...new Set(spans)]
@@ -12,16 +13,17 @@ function Message({ text, spans }: { text: string; spans: string[] }) {
   const escaped = valid.map((span) =>
     span.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   );
-  const parts = text.split(new RegExp(`(${escaped.join("|")})`, "gi"));
   return (
     <>
-      {parts.map((part, index) =>
-        valid.some((span) => span.toLowerCase() === part.toLowerCase()) ? (
-          <mark key={index}>{part}</mark>
-        ) : (
-          part
-        ),
-      )}
+      {text
+        .split(new RegExp(`(${escaped.join("|")})`, "gi"))
+        .map((part, index) =>
+          valid.some((span) => span.toLowerCase() === part.toLowerCase()) ? (
+            <mark key={index}>{part}</mark>
+          ) : (
+            part
+          ),
+        )}
     </>
   );
 }
@@ -38,15 +40,17 @@ export function Drawer({
   busy: boolean;
   onClose: () => void;
   onEdit: (changes: Record<string, unknown>) => Promise<boolean>;
-  onAction: (action: string) => void;
+  onAction: (action: string, body?: unknown) => void;
 }) {
   const [amount, setAmount] = useState("");
   const [reply, setReply] = useState("");
   const [copied, setCopied] = useState(false);
   const [override, setOverride] = useState("");
-  const [showFacts, setShowFacts] = useState(false);
+  const [showMatch, setShowMatch] = useState(false);
   const [orderQuery, setOrderQuery] = useState("");
   const [formError, setFormError] = useState("");
+  const [retryReason, setRetryReason] = useState("");
+  const [retryConfirmed, setRetryConfirmed] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -55,6 +59,7 @@ export function Drawer({
     setOverride(value.duplicateOverride || "");
     setCopied(false);
     setFormError("");
+    setRetryConfirmed(false);
   }, [value]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -65,8 +70,8 @@ export function Drawer({
         const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
           "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]",
         );
-        const first = focusable?.[0];
-        const last = focusable?.[focusable.length - 1];
+        const first = focusable?.[0],
+          last = focusable?.[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last?.focus();
@@ -82,9 +87,9 @@ export function Drawer({
       previous?.focus();
     };
   }, [onClose]);
-  const locked = ["refunded", "rejected", "processing", "failed"].includes(
-    value.status,
-  );
+  const locked =
+    !!value.attempt ||
+    ["refunded", "rejected", "processing", "pending"].includes(value.status);
   const amountCents = parseAmount(amount);
   const changed = amountCents !== value.check?.approvedCents;
   const matchingOrders = orders.filter((order) =>
@@ -92,17 +97,6 @@ export function Drawer({
       .toLowerCase()
       .includes(orderQuery.toLowerCase()),
   );
-  const saveAmount = async () => {
-    if (amountCents === null) {
-      setFormError("Enter a positive amount with at most two decimal places.");
-      return false;
-    }
-    return onEdit({ approvedCents: amountCents });
-  };
-  const approve = async () => {
-    if (changed && !(await saveAmount())) return;
-    onAction("approve");
-  };
   return (
     <>
       <div className="drawer-shade" onClick={onClose} />
@@ -115,7 +109,9 @@ export function Drawer({
       >
         <header className="drawer-header">
           <div>
-            <span className="eyebrow">Case review</span>
+            <span className="eyebrow">
+              Case review · revision {value.revision}
+            </span>
             <h2 id="case-title">{value.sender}</h2>
             <small>{value.email}</small>
           </div>
@@ -133,22 +129,20 @@ export function Drawer({
             <Chip kind={value.status}>
               {value.status === "needs_human" ? "Needs review" : value.status}
             </Chip>
-            <span>
-              {value.orderId || "Order not matched"} ·{" "}
-              {new Date(value.createdAt).toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </span>
+            <span>{value.orderId || "Order not matched"}</span>
           </div>
           {value.error && <div className="notice blocked">{value.error}</div>}
-          {value.status === "refunded" && (
+          {["refunded", "pending"].includes(value.status) && (
             <div className="success-receipt">
-              <span className="success-icon">✓</span>
+              <span className="success-icon">
+                {value.status === "pending" ? "◷" : "✓"}
+              </span>
               <div>
-                <strong>Refund recorded with PayPal</strong>
+                <strong>
+                  {value.status === "pending"
+                    ? "PayPal refund pending"
+                    : "Refund completed with PayPal"}
+                </strong>
                 {value.refunds
                   ?.filter((refund) => refund.caseId === value.id)
                   .map((refund) => (
@@ -177,10 +171,7 @@ export function Drawer({
           {!value.proposal ? (
             <div className="notice pending">
               <strong>Ready for a first look.</strong>
-              <p>
-                Triage this message to match an order, choose a policy, and
-                draft a reply.
-              </p>
+              <p>Match an order, choose a policy, and prepare a reply.</p>
               <button
                 className="button primary"
                 disabled={busy || locked}
@@ -197,19 +188,16 @@ export function Drawer({
                   <button
                     className="text-button"
                     disabled={locked}
-                    onClick={() => setShowFacts(!showFacts)}
+                    onClick={() => setShowMatch(!showMatch)}
                   >
-                    {showFacts ? "Close review" : "Review match & facts"}
+                    {showMatch ? "Close review" : "Review match & policy"}
                   </button>
                 </div>
                 {value.order ? (
                   <>
                     <div className="order-summary">
                       <strong>{value.order.id}</strong>
-                      <span>
-                        {money(value.order.capturedCents, value.order.currency)}{" "}
-                        captured
-                      </span>
+                      <span>{money(value.order.capturedCents)} captured</span>
                     </div>
                     <div className="order-lines">
                       {value.order.lines.map((line) => (
@@ -219,7 +207,6 @@ export function Drawer({
                             <small>
                               Qty {line.quantity}
                               {line.sale ? " · Sale item" : ""}
-                              {line.returnReceived ? " · Return received" : ""}
                             </small>
                           </div>
                           <span>{money(line.unitCents * line.quantity)}</span>
@@ -230,23 +217,23 @@ export function Drawer({
                         <span>{money(value.order.shippingCents)}</span>
                       </div>
                     </div>
-                    <p className="date-line">
-                      Promised {value.order.promisedAt} · Delivered{" "}
-                      {value.order.deliveredAt}
-                    </p>
                     <code className="capture-line">
                       Capture {value.order.captureId}
                     </code>
                   </>
                 ) : (
                   <div className="notice blocked">
-                    No verified order. Pick the right order to continue.
+                    Pick the right order to continue.
                   </div>
                 )}
-                {(showFacts ||
-                  !value.order ||
-                  value.proposal.needs_human_reason) && (
+                {(showMatch || !value.order || value.ambiguous) && (
                   <div className="fact-editor">
+                    {value.ambiguous && (
+                      <div className="notice blocked">
+                        Conflicting references or customer identity. A human
+                        must choose the order.
+                      </div>
+                    )}
                     <label>
                       Find an order
                       <input
@@ -258,7 +245,7 @@ export function Drawer({
                     <label>
                       Choose verified order
                       <select
-                        value={value.orderId || ""}
+                        value={value.manualOrder ? value.orderId || "" : ""}
                         disabled={busy || locked}
                         onChange={(event) =>
                           event.target.value &&
@@ -281,17 +268,17 @@ export function Drawer({
                           value.proposal.policy_clause_ids[0]?.slice(0, 2) || ""
                         }
                         disabled={busy || locked}
-                        onChange={(event) => {
-                          const family = event.target.value;
+                        onChange={(event) =>
                           void onEdit({
-                            clauseIds:
-                              family === "P1"
-                                ? ["P1.1"]
-                                : family === "P2"
-                                  ? ["P2.1"]
-                                  : ["P3.1"],
-                          });
-                        }}
+                            clauseIds: [
+                              event.target.value === "P1"
+                                ? "P1.1"
+                                : event.target.value === "P2"
+                                  ? "P2.1"
+                                  : "P3.1",
+                            ],
+                          })
+                        }
                       >
                         <option value="">Choose policy…</option>
                         <option value="P1">Damaged in transit</option>
@@ -299,66 +286,26 @@ export function Drawer({
                         <option value="P3">Change of mind</option>
                       </select>
                     </label>
-                    {value.proposal.policy_clause_ids.some((id) =>
-                      id.startsWith("P1"),
-                    ) && (
-                      <>
-                        <label className="check-label">
-                          <input
-                            type="checkbox"
-                            disabled={busy || locked}
-                            checked={value.facts.hasDamageEvidence}
-                            onChange={(event) =>
-                              void onEdit({
-                                hasDamageEvidence: event.target.checked,
-                              })
-                            }
-                          />{" "}
-                          Photo or clear damage description verified
-                        </label>
-                        {value.order?.lines.map((line) => (
-                          <label key={line.id} className="check-label">
-                            <input
-                              type="checkbox"
-                              disabled={busy || locked}
-                              checked={value.facts.damagedLineIds.includes(
-                                line.id,
-                              )}
-                              onChange={(event) =>
-                                void onEdit({
-                                  damagedLineIds: event.target.checked
-                                    ? [...value.facts.damagedLineIds, line.id]
-                                    : value.facts.damagedLineIds.filter(
-                                        (id) => id !== line.id,
-                                      ),
-                                })
-                              }
-                            />
-                            {line.title} arrived damaged (all units)
-                          </label>
-                        ))}
-                        <label className="check-label">
-                          <input
-                            type="checkbox"
-                            disabled={busy || locked}
-                            checked={value.proposal.policy_clause_ids.includes(
-                              "P1.2",
-                            )}
-                            onChange={(event) =>
-                              void onEdit({
-                                clauseIds: event.target.checked
-                                  ? ["P1.1", "P1.2"]
-                                  : ["P1.1"],
-                              })
-                            }
-                          />
-                          Include shipping when every item is damaged
-                        </label>
-                      </>
+                    {value.proposal.policy_clause_ids.includes("P1.1") && (
+                      <label className="check-label">
+                        <input
+                          type="checkbox"
+                          disabled={busy || locked}
+                          checked={value.proposal.policy_clause_ids.includes(
+                            "P1.2",
+                          )}
+                          onChange={(event) =>
+                            void onEdit({
+                              clauseIds: event.target.checked
+                                ? ["P1.1", "P1.2"]
+                                : ["P1.1"],
+                            })
+                          }
+                        />
+                        Include shipping when every unit is damaged
+                      </label>
                     )}
-                    {value.proposal.policy_clause_ids.some((id) =>
-                      id.startsWith("P2"),
-                    ) && (
+                    {value.proposal.policy_clause_ids.includes("P2.1") && (
                       <label className="check-label">
                         <input
                           type="checkbox"
@@ -374,37 +321,19 @@ export function Drawer({
                             })
                           }
                         />
-                        Include 15% item refund for more than 20 business days
-                        late
+                        Include 15% item refund after 20 business days
                       </label>
                     )}
-                    {value.proposal.policy_clause_ids.some((id) =>
-                      id.startsWith("P3"),
-                    ) &&
-                      value.order?.lines.map((line) => (
-                        <label key={line.id} className="check-label">
-                          <input
-                            type="checkbox"
-                            disabled={busy || locked}
-                            checked={line.returnReceived}
-                            onChange={(event) =>
-                              void onEdit({
-                                returnReceivedLineIds: value
-                                  .order!.lines.filter((item) =>
-                                    item.id === line.id
-                                      ? event.target.checked
-                                      : item.returnReceived,
-                                  )
-                                  .map((item) => item.id),
-                              })
-                            }
-                          />
-                          {line.title} return received
-                        </label>
-                      ))}
                   </div>
                 )}
               </section>
+              {value.order && (
+                <FactConfirmation
+                  value={value}
+                  disabled={busy || locked}
+                  onEdit={onEdit}
+                />
+              )}
               <section>
                 <div className="section-label">
                   Policy check <Chip kind={value.check?.kind || "pending"} />
@@ -422,6 +351,15 @@ export function Drawer({
                     ✓ Within the policy and refundable balance.
                   </p>
                 )}
+                <div className="clauses">
+                  {value.proposal.policy_clause_ids.map((id) => (
+                    <p key={id}>
+                      <strong>{id}</strong>
+                      {policies.find((policy) => policy.id === id)?.text ||
+                        "Unknown policy clause"}
+                    </p>
+                  ))}
+                </div>
                 {value.duplicateOverride && (
                   <div className="notice adjusted">
                     <strong>Human duplicate override</strong>
@@ -437,15 +375,6 @@ export function Drawer({
                     )}
                   </div>
                 )}
-                <div className="clauses">
-                  {value.proposal.policy_clause_ids.map((id) => (
-                    <p key={id}>
-                      <strong>{id}</strong>
-                      {policies.find((policy) => policy.id === id)?.text ||
-                        "Unknown policy clause"}
-                    </p>
-                  ))}
-                </div>
                 {value.check?.reasons.some((reason) =>
                   reason.includes("override"),
                 ) &&
@@ -456,14 +385,13 @@ export function Drawer({
                         <input
                           value={override}
                           onChange={(event) => setOverride(event.target.value)}
-                          placeholder="Explain why this is a separate eligible refund"
                         />
                       </label>
                       <button
                         className="button secondary"
                         disabled={busy || override.trim().length < 8}
                         onClick={() =>
-                          void onEdit({ duplicateOverride: override })
+                          void onEdit({ duplicateOverride: override.trim() })
                         }
                       >
                         Record human override
@@ -473,15 +401,15 @@ export function Drawer({
               </section>
               <section>
                 <div className="section-label">
-                  Amount review <span>{value.order?.currency || "USD"}</span>
+                  Refund amount <span>Integer cents · USD</span>
                 </div>
                 <div className="amount-compare">
                   <div>
-                    <span>AI proposed</span>
+                    <span>AI proposal</span>
                     <strong>{money(value.check?.modelCents)}</strong>
                   </div>
                   <div>
-                    <span>Policy allowance</span>
+                    <span>Confirmed allowance</span>
                     <strong>{money(value.check?.computedCents)}</strong>
                   </div>
                   <div>
@@ -490,28 +418,101 @@ export function Drawer({
                   </div>
                 </div>
                 <label className="amount-input">
-                  Amount to approve
+                  Approved amount
                   <div>
                     <span>$</span>
                     <input
-                      aria-label="Amount to approve"
-                      inputMode="decimal"
+                      aria-label="Approved amount"
                       value={amount}
-                      disabled={locked || busy}
-                      onChange={(event) => {
-                        setAmount(event.target.value);
-                        setFormError("");
-                      }}
+                      disabled={busy || locked}
+                      onChange={(event) => setAmount(event.target.value)}
                     />
                     <span>USD</span>
                   </div>
                 </label>
+                {changed && !locked && (
+                  <>
+                    <small className="helper">
+                      Save the amount, then review the updated case before
+                      approving.
+                    </small>
+                    <button
+                      className="button secondary"
+                      disabled={busy || amountCents === null}
+                      onClick={() =>
+                        amountCents !== null &&
+                        void onEdit({ approvedCents: amountCents })
+                      }
+                    >
+                      Save amount
+                    </button>
+                  </>
+                )}
                 {formError && <p className="field-error">{formError}</p>}
-                <small className="helper">
-                  You can reduce the amount within the policy allowance. Every
-                  edit is checked.
-                </small>
               </section>
+              {value.attempt && value.status !== "refunded" && (
+                <section className="override-box">
+                  <div className="section-label">
+                    PayPal recovery <span>{value.attempt.state}</span>
+                  </div>
+                  <p className="helper">
+                    Check the existing attempt’s receipt before retrying. The
+                    amount and facts remain frozen.
+                  </p>
+                  <button
+                    className="button secondary"
+                    disabled={busy || value.status === "processing"}
+                    onClick={() => onAction("check-paypal")}
+                  >
+                    Check PayPal
+                  </button>
+                  {value.attempt.retryAllowed && (
+                    <>
+                      <div className="notice blocked">
+                        A new request id can create a duplicate refund if
+                        PayPal’s earlier result arrives late. Only retry after
+                        investigating the missing receipt.
+                      </div>
+                      <label>
+                        Reason for retry
+                        <input
+                          value={retryReason}
+                          onChange={(event) =>
+                            setRetryReason(event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="check-label">
+                        <input
+                          type="checkbox"
+                          checked={retryConfirmed}
+                          onChange={(event) =>
+                            setRetryConfirmed(event.target.checked)
+                          }
+                        />
+                        I confirm the duplicate-refund risk and checked PayPal
+                      </label>
+                      <button
+                        className="button secondary"
+                        disabled={
+                          busy ||
+                          !retryConfirmed ||
+                          retryReason.trim().length < 8
+                        }
+                        onClick={() =>
+                          onAction("retry-new-id", {
+                            confirmed: true,
+                            reason: retryReason.trim(),
+                            revision: value.revision,
+                          })
+                        }
+                      >
+                        Retry with a new request id
+                      </button>
+                    </>
+                  )}
+                </section>
+              )}
               <section>
                 <div className="section-label">
                   Customer reply{" "}
@@ -542,7 +543,6 @@ export function Drawer({
                       }
                     }}
                   >
-                    {" "}
                     {copied ? "✓ Copied" : "Copy reply"}
                   </button>
                   {reply !== value.replyDraft && (
@@ -573,17 +573,19 @@ export function Drawer({
             <button className="button primary full" onClick={onClose}>
               Done · back to queue
             </button>
-          ) : value.status === "rejected" ? (
-            <p>This case was rejected. No payment was made.</p>
+          ) : locked ? (
+            <p>
+              {value.status === "pending"
+                ? "Waiting for PayPal to complete this refund."
+                : value.status === "rejected"
+                  ? "This case was rejected. No payment was made."
+                  : "Refund locked. Use Check PayPal to resolve its outcome."}
+            </p>
           ) : (
             <>
               <button
                 className="button secondary"
-                disabled={
-                  busy ||
-                  value.status === "processing" ||
-                  value.status === "failed"
-                }
+                disabled={busy}
                 onClick={() => onAction("reject")}
               >
                 Reject
@@ -592,29 +594,19 @@ export function Drawer({
                 className="button primary"
                 disabled={
                   busy ||
-                  value.status === "processing" ||
-                  (value.status !== "failed" &&
-                    (!value.check ||
-                      value.check.kind === "blocked" ||
-                      amountCents === null ||
-                      amountCents > value.check.computedCents))
+                  changed ||
+                  !value.check ||
+                  value.check.kind === "blocked" ||
+                  amountCents === null
                 }
                 onClick={() =>
-                  value.status === "failed"
-                    ? onAction("approve")
-                    : void approve()
+                  onAction("approve", {
+                    revision: value.revision,
+                    approvedCents: value.check!.approvedCents,
+                  })
                 }
               >
-                {busy ? (
-                  <>
-                    <span className="spinner" />
-                    Working…
-                  </>
-                ) : value.status === "failed" ? (
-                  "Retry locked refund"
-                ) : (
-                  `Approve ${money(amountCents)}`
-                )}
+                {busy ? "Working…" : `Approve ${money(amountCents)}`}
               </button>
             </>
           )}

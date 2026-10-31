@@ -10,16 +10,25 @@ export interface PayPalCapture {
   status: string;
   amount: PayPalMoney;
   links?: { rel: string; href: string }[];
+  supplementary_data?: { related_ids?: { order_id?: string } };
+  invoice_id?: string;
 }
 export interface PayPalRefund {
   id: string;
   status: string;
   amount: PayPalMoney;
+  invoice_id?: string;
+  custom_id?: string;
+  supplementary_data?: {
+    related_ids?: { capture_id?: string; order_id?: string };
+  };
+  links?: { rel: string; href: string }[];
 }
 export interface PayPalOrder {
   id: string;
   status: string;
   purchase_units?: {
+    invoice_id?: string;
     payments?: { captures?: PayPalCapture[]; refunds?: PayPalRefund[] };
   }[];
 }
@@ -37,19 +46,17 @@ export class PayPalError extends Error {
       debug_id?: string;
     },
   ) {
-    super(body.message || "PayPal request failed");
+    super(`PayPalError (HTTP ${status})`);
     this.name = "PayPalError";
     this.status = status;
-    this.paypalName = body.name || "PAYPAL_ERROR";
-    this.issue = body.details?.[0]?.issue || null;
-    this.debugId = body.debug_id || null;
+    this.paypalName = "PayPalError";
+    this.issue = null;
+    this.debugId = null;
   }
   toJSON() {
     return {
       message: this.message,
       name: this.paypalName,
-      issue: this.issue,
-      debug_id: this.debugId,
       status: this.status,
     };
   }
@@ -141,6 +148,7 @@ export class PayPalClient {
     amountCents: number,
     reference: string,
     key: string,
+    onCreated?: (order: PayPalOrder) => void,
   ): Promise<{ order: PayPalOrder; capture: PayPalCapture }> {
     const created = await this.request<PayPalOrder>(
       "/v2/checkout/orders",
@@ -150,6 +158,8 @@ export class PayPalClient {
         purchase_units: [
           {
             reference_id: reference,
+            invoice_id: reference,
+            custom_id: reference,
             amount: {
               currency_code: "USD",
               value: centsToDecimal(amountCents),
@@ -167,6 +177,7 @@ export class PayPalClient {
       },
       key,
     );
+    onCreated?.(created);
     const captured = created.purchase_units?.[0]?.payments?.captures?.[0];
     const order = captured
       ? created
@@ -191,11 +202,21 @@ export class PayPalClient {
       key,
     );
   }
-  refund(captureId: string, cents: number, currency: string, key: string) {
+  refund(
+    captureId: string,
+    cents: number,
+    currency: string,
+    key: string,
+    attemptId = key,
+  ) {
     return this.request<PayPalRefund>(
       `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
       "POST",
-      { amount: { currency_code: currency, value: centsToDecimal(cents) } },
+      {
+        amount: { currency_code: currency, value: centsToDecimal(cents) },
+        invoice_id: attemptId,
+        custom_id: attemptId,
+      },
       key,
     );
   }
@@ -214,10 +235,47 @@ export class PayPalClient {
       `/v2/payments/refunds/${encodeURIComponent(id)}`,
     );
   }
+  async findCaptureByInvoice(
+    invoiceId: string,
+    since: string,
+  ): Promise<{ order: PayPalOrder; capture: PayPalCapture } | null> {
+    // PayPal has no v2 order-list endpoint. Reporting is the supported invoice lookup.
+    // Reporting can lag; callers must not create again outside the request-id window.
+    const start = new Date(
+      Math.max(Date.parse(since) - 60_000, Date.now() - 30 * 86400000),
+    ).toISOString();
+    const end = new Date().toISOString();
+    for (let page = 1; ; page++) {
+      const report = await this.request<{
+        total_pages?: number;
+        transaction_details?: {
+          transaction_info?: { invoice_id?: string; transaction_id?: string };
+        }[];
+      }>(
+        `/v1/reporting/transactions?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}&fields=all&page_size=100&page=${page}`,
+      );
+      for (const entry of report.transaction_details || []) {
+        if (
+          entry.transaction_info?.invoice_id !== invoiceId ||
+          !entry.transaction_info.transaction_id
+        )
+          continue;
+        const capture = await this.getCapture(
+          entry.transaction_info.transaction_id,
+        );
+        const orderId = capture.supplementary_data?.related_ids?.order_id;
+        if (!orderId)
+          throw new Error("Capture lookup returned no related order id");
+        return { capture, order: await this.getOrder(orderId) };
+      }
+      if (page >= (report.total_pages || 1)) return null;
+    }
+  }
   async verifyWebhook(
     headers: Headers,
     event: unknown,
     webhookId: string,
+    rawBody?: string,
   ): Promise<boolean> {
     const result = await this.request<{ verification_status: string }>(
       "/v1/notifications/verify-webhook-signature",
@@ -231,7 +289,11 @@ export class PayPalClient {
         webhook_id: webhookId,
         webhook_event: event,
       },
-      requestId(`webhook-${headers.get("paypal-transmission-id")}`),
+      requestId(
+        `webhook-${headers.get("paypal-transmission-id")}-${createHash("sha256")
+          .update(rawBody ?? JSON.stringify(event))
+          .digest("hex")}`,
+      ),
     );
     return result.verification_status === "SUCCESS";
   }

@@ -1,12 +1,28 @@
 import { randomUUID } from "node:crypto";
 import { guard, distribute } from "../core/guardrails.js";
-import { decimalToCents } from "../core/money.js";
-import type { DeskCase, Proposal } from "../core/types.js";
-import { candidatesFor, triage } from "./triage.js";
-import { ledgerRow, reconcile } from "./reconcile.js";
-import { requestId, type PayPalClient } from "./paypal.js";
+import {
+  emptyFacts,
+  factsSchema,
+  type DeskCase,
+  type Facts,
+} from "../core/types.js";
+import {
+  candidatesFor,
+  identityConflict,
+  proposedFactsFor,
+  triage,
+} from "./triage.js";
+import {
+  ledgerRow,
+  reconcile,
+  readCaptureRefunds,
+  importAttemptReceipt,
+} from "./reconcile.js";
+import { requestId, type PayPalClient, type PayPalRefund } from "./paypal.js";
 import type { Attempt, Store } from "./db.js";
+import { redactError } from "./errors.js";
 
+export const IDEMPOTENCY_WINDOW_MS = 60 * 60 * 1000;
 export class DeskError extends Error {
   readonly status: number;
   constructor(message: string, status = 409) {
@@ -16,6 +32,8 @@ export class DeskError extends Error {
   }
 }
 export class DeskService {
+  private activeAttempts = new Set<string>();
+  private triageActive = 0;
   readonly store: Store;
   readonly paypal: PayPalClient;
   constructor(store: Store, paypal: PayPalClient) {
@@ -32,26 +50,46 @@ export class DeskService {
     const order = value.orderId ? this.store.getOrder(value.orderId) : null;
     const candidates = candidatesFor(this.store, value);
     const refunds = order ? this.store.listRefunds(order.id) : [];
-    if (!value.proposal) return { ...value, order, candidates, refunds };
-    if (
-      value.approvalCheck &&
-      ["refunded", "processing", "failed"].includes(value.status)
-    )
-      return {
-        ...value,
-        order,
-        candidates,
-        refunds,
-        check: value.approvalCheck,
-      };
+    const attempt = this.store.getAttempt(id);
+    const ambiguous =
+      !value.manualOrder &&
+      (identityConflict(this.store, value, order) ||
+        (value.proposal !== null && value.proposal.confidence < 0.65));
+    const base = {
+      ...value,
+      order,
+      candidates,
+      refunds,
+      ambiguous,
+      attempt: attempt
+        ? {
+            id: attempt.id,
+            state: attempt.state,
+            createdAt: attempt.createdAt,
+            amountCents: attempt.amountCents,
+            retryAllowed:
+              attempt.state === "uncertain" &&
+              !!attempt.remoteAbsent &&
+              Date.now() - Date.parse(attempt.createdAt) >
+                IDEMPOTENCY_WINDOW_MS,
+          }
+        : null,
+    };
+    if (!value.proposal) return base;
+    if (attempt && value.approvalCheck)
+      return { ...base, check: value.approvalCheck };
     const activeRefunds = refunds.filter((refund) =>
       ["COMPLETED", "PENDING"].includes(refund.status),
     );
     const byLine: Record<string, number> = {};
-    for (const refund of activeRefunds)
+    const quantities: Record<string, number> = {};
+    for (const refund of activeRefunds) {
       for (const allocation of refund.allocations)
         byLine[allocation.item] =
           (byLine[allocation.item] || 0) + allocation.cents;
+      for (const item of refund.returnedItems || [])
+        quantities[item.item] = (quantities[item.item] || 0) + item.quantity;
+    }
     const duplicate =
       !!order &&
       (activeRefunds.some(
@@ -73,34 +111,18 @@ export class DeskService {
         (refund) =>
           refund.allocations.reduce((sum, line) => sum + line.cents, 0) !==
           refund.amountCents,
-      ) ||
-      (!!ledger && ledger.match === false);
-    const evidenceVerified =
-      order &&
-      value.proposal.match_evidence.some(
-        (span) =>
-          value.message.toLowerCase().includes(span.toLowerCase()) &&
-          (span.toLowerCase().includes(order.id.toLowerCase()) ||
-            order.id.toLowerCase().includes(span.toLowerCase()) ||
-            order.customerName.toLowerCase().includes(span.toLowerCase()) ||
-            order.email.toLowerCase() === span.toLowerCase()),
-      );
-    const ambiguous =
-      !value.manualOrder &&
-      (candidates.length !== 1 ||
-        candidates[0].id !== order?.id ||
-        !evidenceVerified ||
-        value.proposal.confidence < 0.65);
+      ) || ledger?.match === false;
     const check = guard({
       order,
       proposal: value.proposal,
-      facts: value.facts,
+      facts: value.confirmedFacts,
       now: new Date().toISOString(),
       refundedCents: Math.max(
         activeRefunds.reduce((sum, refund) => sum + refund.amountCents, 0),
-        ledger?.remoteRefundedCents || 0,
+        (ledger?.remoteRefundedCents || 0) + (ledger?.pendingCents || 0),
       ),
       refundedByLine: byLine,
+      refundedQuantities: quantities,
       duplicate,
       ambiguous,
       overrideDuplicate: !!value.duplicateOverride,
@@ -109,62 +131,56 @@ export class DeskService {
         : { approvedCents: value.approvedCents }),
       unallocatedRefund: unallocated,
     });
-    return { ...value, order, candidates, refunds, check };
+    return { ...base, check };
   }
   async triageCase(id: string): Promise<DeskCase> {
+    if (this.triageActive >= 2)
+      throw new DeskError(
+        "Two triage jobs are already running. Try again shortly.",
+        429,
+      );
     const value = this.requireCase(id);
     if (
-      ["processing", "refunded", "rejected"].includes(value.status) ||
+      ["processing", "pending", "refunded", "rejected"].includes(
+        value.status,
+      ) ||
       this.store.getAttempt(id)
     )
       throw new DeskError("This case can no longer be triaged.");
-    const proposal = await triage(this.store, value);
-    const current = this.requireCase(id);
-    if (
-      JSON.stringify(current) !== JSON.stringify(value) ||
-      this.store.getAttempt(id)
-    )
-      throw new DeskError("Case changed while triaging; refresh it.");
-    if (!proposal) {
-      value.status = "needs_human";
-      value.error =
-        "AI output was invalid after one retry, or the provider is not configured.";
+    this.triageActive++;
+    try {
+      const { proposal, unavailable } = await triage(this.store, value);
+      const current = this.requireCase(id);
+      if (current.revision !== value.revision || this.store.getAttempt(id))
+        throw new DeskError("This case changed; review again");
+      value.proposal = proposal;
+      if (!value.manualOrder)
+        value.orderId =
+          proposal.matched_order_id &&
+          candidatesFor(this.store, value).some(
+            (order) => order.id === proposal.matched_order_id,
+          )
+            ? proposal.matched_order_id
+            : null;
+      value.proposedFacts = proposedFactsFor(
+        value,
+        proposal,
+        value.orderId ? this.store.getOrder(value.orderId) : null,
+      );
+      value.confirmedFacts = emptyFacts();
+      value.approvedCents = null;
+      value.replyDraft = proposal.customer_reply_draft;
+      value.error = unavailable
+        ? "AI unavailable — keyword triage used. Review the proposed facts."
+        : null;
+      this.store.saveCase(value);
+      value.status =
+        this.detail(id).check?.kind === "blocked" ? "needs_human" : "ready";
       this.store.saveCase(value);
       return this.detail(id);
+    } finally {
+      this.triageActive--;
     }
-    value.proposal = proposal;
-    if (!value.manualOrder)
-      value.orderId =
-        proposal.matched_order_id &&
-        this.store.getOrder(proposal.matched_order_id)
-          ? proposal.matched_order_id
-          : null;
-    if (!value.fixture) {
-      const order = value.orderId ? this.store.getOrder(value.orderId) : null;
-      value.facts = {
-        damagedLineIds: /broken|crack|damage|shatter|rota|grieta/i.test(
-          value.message,
-        )
-          ? proposal.proposed_lines
-              .filter((line) =>
-                order?.lines.some((item) => item.id === line.item),
-              )
-              .map((line) => line.item)
-          : [],
-        hasDamageEvidence:
-          /cracked?\s+(handle|base)|shatter|sharp pieces|asa rota|grieta|big crack|broken.*handle/i.test(
-            value.message,
-          ),
-      };
-    }
-    value.approvedCents = null;
-    value.replyDraft = proposal.customer_reply_draft;
-    value.error = null;
-    this.store.saveCase(value);
-    value.status =
-      this.detail(id).check?.kind === "blocked" ? "needs_human" : "ready";
-    this.store.saveCase(value);
-    return this.detail(id);
   }
   createMessage(
     input: Pick<DeskCase, "sender" | "email" | "subject" | "message">,
@@ -172,11 +188,13 @@ export class DeskService {
     const value: DeskCase = {
       ...input,
       id: `case-${randomUUID()}`,
+      revision: 1,
       createdAt: new Date().toISOString(),
       status: "new",
       orderId: null,
       proposal: null,
-      facts: { damagedLineIds: [], hasDamageEvidence: false },
+      proposedFacts: emptyFacts(),
+      confirmedFacts: emptyFacts(),
       approvedCents: null,
       replyDraft: "",
       replySent: false,
@@ -194,9 +212,7 @@ export class DeskService {
       orderId?: string;
       approvedCents?: number;
       clauseIds?: string[];
-      damagedLineIds?: string[];
-      hasDamageEvidence?: boolean;
-      returnReceivedLineIds?: string[];
+      confirmedFacts?: Facts;
       duplicateOverride?: string | null;
       replyDraft?: string;
       replySent?: boolean;
@@ -208,24 +224,30 @@ export class DeskService {
     );
     if (
       moneyChange &&
-      (["processing", "refunded", "rejected"].includes(value.status) ||
+      (["processing", "pending", "refunded", "rejected"].includes(
+        value.status,
+      ) ||
         this.store.getAttempt(id))
     )
       throw new DeskError(
         "The refund is locked; its order and amount cannot change.",
       );
     if (changes.orderId) {
-      if (!this.store.getOrder(changes.orderId))
-        throw new DeskError("Unknown order", 400);
+      const order = this.store.getOrder(changes.orderId);
+      if (!order) throw new DeskError("Unknown order", 400);
+      if (value.orderId !== changes.orderId)
+        value.confirmedFacts = emptyFacts();
       value.orderId = changes.orderId;
       value.manualOrder = true;
       value.approvedCents = null;
-      if (value.proposal)
+      if (value.proposal) {
         value.proposal = {
           ...value.proposal,
           matched_order_id: changes.orderId,
           needs_human_reason: null,
         };
+        value.proposedFacts = proposedFactsFor(value, value.proposal, order);
+      }
     }
     if (changes.clauseIds) {
       if (!value.proposal)
@@ -233,45 +255,63 @@ export class DeskService {
       value.proposal.policy_clause_ids = changes.clauseIds;
       value.approvedCents = null;
     }
-    if (changes.damagedLineIds)
-      value.facts.damagedLineIds = changes.damagedLineIds;
-    if (changes.hasDamageEvidence !== undefined)
-      value.facts.hasDamageEvidence = changes.hasDamageEvidence;
-    if (changes.duplicateOverride !== undefined)
-      value.duplicateOverride = changes.duplicateOverride?.trim() || null;
-    if (changes.replyDraft !== undefined) value.replyDraft = changes.replyDraft;
-    if (changes.replySent !== undefined) value.replySent = changes.replySent;
-    this.store.transaction(() => {
-      if (changes.returnReceivedLineIds) {
-        const order = value.orderId && this.store.getOrder(value.orderId);
-        if (!order)
-          throw new DeskError(
-            "Pick an order before marking a return received",
-            400,
-          );
-        for (const line of order.lines)
-          line.returnReceived = changes.returnReceivedLineIds.includes(line.id);
-        this.store.saveOrder(order);
-      }
-      if (changes.approvedCents !== undefined) {
-        value.approvedCents = changes.approvedCents;
-        this.store.saveCase(value);
-        const check = this.detail(id).check;
+    if (changes.confirmedFacts) {
+      const facts = factsSchema.parse(changes.confirmedFacts);
+      const order = value.orderId ? this.store.getOrder(value.orderId) : null;
+      if (!order)
+        throw new DeskError("Pick an order before confirming facts", 400);
+      for (const items of [facts.damagedItems, facts.returnedItems]) {
         if (
-          !check ||
-          changes.approvedCents > check.computedCents ||
-          changes.approvedCents > check.remainderCents ||
-          changes.approvedCents <= 0
+          new Set(items.map((item) => item.item)).size !== items.length ||
+          items.some(
+            (item) =>
+              !order.lines.some(
+                (line) =>
+                  line.id === item.item && item.quantity <= line.quantity,
+              ),
+          )
         )
           throw new DeskError(
-            "Amount exceeds the policy allowance or refundable remainder.",
+            "Confirmed items and quantities must belong to the selected order",
             422,
           );
       }
+      if (
+        facts.deliveryDates &&
+        (!Number.isFinite(Date.parse(facts.deliveryDates.promisedAt)) ||
+          !Number.isFinite(Date.parse(facts.deliveryDates.deliveredAt)))
+      )
+        throw new DeskError("Invalid confirmed dates", 422);
+      value.confirmedFacts = facts;
+      value.approvedCents = null;
+    }
+    if (changes.duplicateOverride !== undefined) {
+      const reason = changes.duplicateOverride?.trim() || null;
+      if (reason && reason.length < 8)
+        throw new DeskError("Give a reason for the duplicate override", 400);
+      value.duplicateOverride = reason;
+    }
+    if (changes.replyDraft !== undefined) value.replyDraft = changes.replyDraft;
+    if (changes.replySent !== undefined) value.replySent = changes.replySent;
+    this.store.transaction(() => {
+      if (changes.approvedCents !== undefined)
+        value.approvedCents = changes.approvedCents;
       this.store.saveCase(value);
+      const check = this.detail(id).check;
+      if (
+        changes.approvedCents !== undefined &&
+        (!check ||
+          changes.approvedCents > check.computedCents ||
+          changes.approvedCents > check.remainderCents ||
+          !Number.isSafeInteger(changes.approvedCents) ||
+          changes.approvedCents <= 0)
+      )
+        throw new DeskError(
+          "Amount exceeds the policy allowance or refundable remainder.",
+          422,
+        );
       if (moneyChange && value.proposal) {
-        value.status =
-          this.detail(id).check?.kind === "blocked" ? "needs_human" : "ready";
+        value.status = check?.kind === "blocked" ? "needs_human" : "ready";
         this.store.saveCase(value);
       }
     });
@@ -280,7 +320,7 @@ export class DeskService {
   reject(id: string): DeskCase {
     const value = this.requireCase(id);
     if (
-      ["processing", "refunded"].includes(value.status) ||
+      ["processing", "pending", "refunded"].includes(value.status) ||
       this.store.getAttempt(id)
     )
       throw new DeskError("A submitted refund cannot be rejected.");
@@ -288,14 +328,27 @@ export class DeskService {
     this.store.saveCase(value);
     return this.detail(id);
   }
-  async approve(id: string) {
+  async approve(
+    id: string,
+    reviewed: { revision: number; approvedCents: number },
+  ) {
     let value = this.requireCase(id);
-    if (["refunded", "rejected", "processing"].includes(value.status))
+    const assertReviewed = () => {
+      if (
+        value.revision !== reviewed.revision ||
+        this.detail(id).check?.approvedCents !== reviewed.approvedCents
+      )
+        throw new DeskError("This case changed; review again");
+    };
+    assertReviewed();
+    if (
+      ["refunded", "rejected", "processing", "pending"].includes(value.status)
+    )
       throw new DeskError(
         "This case is already refunded, rejected, or processing. Second approval blocked.",
       );
     let attempt = this.store.getAttempt(id);
-    if (attempt?.state === "done")
+    if (attempt && attempt.state !== "uncertain")
       throw new DeskError("Second approval blocked.");
     if (!attempt) {
       if (!value.orderId) throw new DeskError("Pick an order before approval.");
@@ -303,14 +356,8 @@ export class DeskService {
       await reconcile(this.store, this.paypal, checkedOrderId);
       attempt = this.store.transaction(() => {
         value = this.requireCase(id);
-        if (value.orderId !== checkedOrderId)
-          throw new DeskError(
-            "Order changed during reconciliation. Review and approve again.",
-          );
-        if (
-          ["refunded", "rejected", "processing"].includes(value.status) ||
-          this.store.getAttempt(id)
-        )
+        assertReviewed();
+        if (this.store.getAttempt(id))
           throw new DeskError("Another approval already claimed this case.");
         const detail = this.detail(id);
         if (!detail.check || detail.check.kind === "blocked" || !detail.order)
@@ -324,24 +371,40 @@ export class DeskService {
               (other) =>
                 other.orderId === detail.order!.id &&
                 other.caseId !== id &&
-                other.state !== "done",
+                !["completed", "failed"].includes(other.state),
             )
         )
           throw new DeskError(
             "Another refund for this order is processing or unresolved.",
           );
+        const allocations = distribute(
+          detail.check.lines,
+          reviewed.approvedCents,
+        );
+        const attemptId = requestId(`${id}:${detail.order.captureId}`);
         const result: Attempt = {
+          id: attemptId,
           caseId: id,
           orderId: detail.order.id,
-          requestId: requestId(`${id}:${detail.order.captureId}`),
-          amountCents: detail.check.approvedCents,
+          requestId: attemptId,
+          amountCents: reviewed.approvedCents,
           currency: detail.order.currency,
-          allocations: distribute(
-            detail.check.lines,
-            detail.check.approvedCents,
-          ),
-          state: "processing",
+          allocations,
+          state: "submitted",
           createdAt: new Date().toISOString(),
+          revision: reviewed.revision,
+          snapshot: structuredClone({
+            revision: reviewed.revision,
+            amountCents: reviewed.approvedCents,
+            allocations,
+            clauseIds: value.proposal!.policy_clause_ids,
+            facts: value.confirmedFacts,
+            order: detail.order,
+            duplicateOverride: value.duplicateOverride,
+          }),
+          returnFeeCaseId: value.proposal!.policy_clause_ids.includes("P3.1")
+            ? id
+            : null,
         };
         value.status = "processing";
         value.error = null;
@@ -352,92 +415,173 @@ export class DeskService {
         return result;
       });
     } else {
-      if (Date.now() - Date.parse(attempt.createdAt) > 60 * 60 * 1000)
+      if (Date.now() - Date.parse(attempt.createdAt) > IDEMPOTENCY_WINDOW_MS)
         throw new DeskError(
-          "This unresolved request is over an hour old. Review it in PayPal before retrying; its remote idempotency retention cannot be assumed.",
+          "This unresolved request is over an hour old. Check PayPal before retrying.",
         );
-      // Uncertain outcomes retry the exact persisted request, including after a process restart.
       this.store.transaction(() => {
         value = this.requireCase(id);
-        if (value.status === "processing")
+        assertReviewed();
+        if (this.activeAttempts.has(id))
           throw new DeskError("This refund is already processing.");
         value.status = "processing";
         this.store.saveCase(value);
-        attempt!.state = "processing";
+        attempt!.state = "submitted";
         this.store.saveAttempt(attempt!);
       });
     }
-    const order = this.store.getOrder(attempt.orderId)!;
-    let receipt;
+    return this.sendAttempt(attempt);
+  }
+  private async sendAttempt(attempt: Attempt) {
+    const id = attempt.caseId;
+    if (this.activeAttempts.has(id))
+      throw new DeskError("This refund is already processing.");
+    this.activeAttempts.add(id);
+    let receipt: PayPalRefund;
     try {
       receipt = await this.paypal.refund(
-        order.captureId,
+        attempt.snapshot.order.captureId,
         attempt.amountCents,
         attempt.currency,
         attempt.requestId,
+        attempt.id,
       );
-      if (
-        receipt.amount.currency_code !== attempt.currency ||
-        decimalToCents(receipt.amount.value) !== attempt.amountCents ||
-        !["COMPLETED", "PENDING"].includes(receipt.status)
-      )
-        throw new DeskError(
-          "PayPal refund is not confirmed with the requested amount; keep the request locked.",
-        );
+      this.store.transaction(() =>
+        importAttemptReceipt(this.store, attempt, receipt),
+      );
+    } catch (error) {
       this.store.transaction(() => {
-        this.store.saveRefund({
-          id: receipt!.id,
-          caseId: id,
-          orderId: order.id,
-          amountCents: attempt!.amountCents,
-          currency: attempt!.currency,
-          status: receipt!.status,
-          requestId: attempt!.requestId,
-          allocations: attempt!.allocations,
-          createdAt: attempt!.createdAt,
-        });
-        attempt!.state = "done";
-        this.store.saveAttempt(attempt!);
-        value = this.requireCase(id);
-        value.status = "refunded";
-        value.error = null;
+        attempt.state = "uncertain";
+        attempt.remoteAbsent = false;
+        this.store.saveAttempt(attempt);
+        const value = this.requireCase(id);
+        value.status = "needs_human";
+        value.error = `${redactError(error)}. Outcome uncertain; Check PayPal before retrying.`;
         this.store.saveCase(value);
       });
-    } catch (error) {
-      attempt.state = "uncertain";
-      this.store.saveAttempt(attempt);
-      value = this.requireCase(id);
-      value.status = "failed";
-      value.error = error instanceof Error ? error.message : "Refund failed";
-      this.store.saveCase(value);
       throw error;
+    } finally {
+      this.activeAttempts.delete(id);
     }
     try {
-      return {
-        case: this.detail(id),
-        refund: receipt,
-        ledger: await reconcile(this.store, this.paypal, order.id),
-      };
+      const ledger = await reconcile(this.store, this.paypal, attempt.orderId);
+      return { case: this.detail(id), refund: receipt, ledger };
     } catch (error) {
       return {
         case: this.detail(id),
         refund: receipt,
-        ledger: ledgerRow(this.store, order.id),
-        reconciliationError:
-          error instanceof Error ? error.message : "Reconciliation failed",
+        ledger: ledgerRow(this.store, attempt.orderId),
+        reconciliationError: redactError(error),
       };
     }
+  }
+  async checkPayPal(id: string) {
+    const attempt = this.store.getAttempt(id);
+    if (!attempt) throw new DeskError("No refund attempt to recover.");
+    if (this.activeAttempts.has(id))
+      throw new DeskError(
+        "The refund request is still running; check after it finishes.",
+      );
+    const { receipts } = await readCaptureRefunds(
+      this.paypal,
+      attempt.snapshot.order,
+    );
+    const found = receipts.filter(
+      (receipt) =>
+        receipt.invoice_id === attempt.id ||
+        receipt.custom_id === attempt.id ||
+        receipt.id === attempt.refundId,
+    );
+    if (found.length > 1)
+      throw new DeskError(
+        "Multiple PayPal refunds match this attempt. Manual investigation required.",
+      );
+    this.store.transaction(() => {
+      const current = this.store.getAttempt(id)!;
+      if (
+        current.requestId !== attempt.requestId ||
+        this.activeAttempts.has(id)
+      )
+        throw new DeskError("Attempt changed while checking PayPal.");
+      if (found[0]) importAttemptReceipt(this.store, current, found[0]);
+      else if (!["completed", "pending", "failed"].includes(current.state)) {
+        current.state = "uncertain";
+        current.remoteAbsent = true;
+      }
+      current.checkedAt = new Date().toISOString();
+      this.store.saveAttempt(current);
+    });
+    const ledger = await reconcile(this.store, this.paypal, attempt.orderId);
+    return {
+      case: this.detail(id),
+      ledger,
+      recovered: !!found[0],
+      retryAllowed: this.detail(id).attempt?.retryAllowed || false,
+    };
+  }
+  async retryWithNewId(
+    id: string,
+    input: { confirmed: boolean; reason: string; revision: number },
+  ) {
+    if (!input.confirmed || input.reason.trim().length < 8)
+      throw new DeskError(
+        "Confirm the duplicate-refund warning and give a reason.",
+        400,
+      );
+    if (this.requireCase(id).revision !== input.revision)
+      throw new DeskError("This case changed; review again");
+    const checked = await this.checkPayPal(id);
+    if (
+      checked.recovered ||
+      !checked.retryAllowed ||
+      checked.ledger.match !== true
+    )
+      throw new DeskError(
+        "Retry unavailable: PayPal must show no matching receipt and a matching ledger after the request-id window.",
+      );
+    const attempt = this.store.transaction(() => {
+      const current = this.store.getAttempt(id)!;
+      if (
+        this.activeAttempts.has(id) ||
+        current.state !== "uncertain" ||
+        !current.remoteAbsent ||
+        Date.now() - Date.parse(current.createdAt) <= IDEMPOTENCY_WINDOW_MS
+      )
+        throw new DeskError("Another action claimed this attempt.");
+      current.retryHistory = [
+        ...(current.retryHistory || []),
+        {
+          requestId: current.requestId,
+          createdAt: current.createdAt,
+          reason: input.reason.trim(),
+        },
+      ];
+      current.requestId = requestId(`${current.id}:${randomUUID()}`);
+      current.createdAt = new Date().toISOString();
+      current.state = "submitted";
+      current.remoteAbsent = false;
+      const value = this.requireCase(id);
+      value.status = "processing";
+      this.store.saveCase(value);
+      this.store.saveAttempt(current);
+      return current;
+    });
+    return this.sendAttempt(attempt);
   }
   recoverInterrupted() {
     for (const attempt of this.store
       .listAttempts()
-      .filter((value) => value.state === "processing")) {
+      .filter(
+        (value) =>
+          value.state === "submitted" ||
+          (value.state as string) === "processing",
+      )) {
       attempt.state = "uncertain";
       this.store.saveAttempt(attempt);
       const value = this.requireCase(attempt.caseId);
-      value.status = "failed";
+      value.status = "needs_human";
       value.error =
-        "Interrupted approval. Retry the same locked request to recover its outcome.";
+        "Interrupted approval. Check PayPal to recover the frozen attempt.";
       this.store.saveCase(value);
     }
   }

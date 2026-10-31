@@ -1,3 +1,11 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 export async function api<T>(
   path: string,
   method = "GET",
@@ -5,14 +13,16 @@ export async function api<T>(
 ): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method,
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const result = await response.json();
   if (!response.ok) {
     const error = result.error;
-    throw new Error(
+    throw new ApiError(
       `${error?.message || "Request failed"}${error?.issue ? ` · ${error.issue}` : ""}${error?.debug_id ? ` · PayPal debug ${error.debug_id}` : ""}`,
+      response.status,
     );
   }
   return result as T;

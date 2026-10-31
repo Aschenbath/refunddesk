@@ -83,6 +83,7 @@ export function QueueGrid({
             "needs_human",
             "failed",
             "processing",
+            "pending",
             "refunded",
             "rejected",
           ].flatMap((group) => {
@@ -148,7 +149,8 @@ export function QueueGrid({
         type: "numericColumn",
         editable: (p) =>
           !!p.data?.check &&
-          !["refunded", "rejected", "processing", "failed"].includes(
+          !p.data?.attempt &&
+          !["refunded", "rejected", "processing", "pending", "failed"].includes(
             p.data.status || "",
           ),
         valueGetter: (p) =>
@@ -233,7 +235,7 @@ export function QueueGrid({
         onCellKeyDown={(p) => {
           if (
             (p.event as KeyboardEvent)?.key === "Enter" &&
-          "column" in p &&
+            "column" in p &&
             p.column.getColId() !== "amount" &&
             p.data &&
             !p.data.group
@@ -329,6 +331,13 @@ export function LedgerGrid({
         }),
       ),
       {
+        headerName: "Pending",
+        field: "pendingCents",
+        width: 105,
+        type: "numericColumn",
+        valueFormatter: (p) => money(p.value, p.data?.currency),
+      },
+      {
         headerName: "PayPal status",
         field: "paypalStatus",
         width: 173,
@@ -341,22 +350,26 @@ export function LedgerGrid({
       {
         headerName: "Match",
         field: "match",
-        width: 120,
+        width: 153,
         cellRenderer: ({ data }: ICellRendererParams<LedgerRow>) => (
           <Chip
             kind={
               data?.match === true
                 ? "pass"
-                : data?.match === false
-                  ? "blocked"
-                  : "pending"
+                : data?.unexpectedRefundIds?.length
+                  ? "unexpected"
+                  : data?.match === false
+                    ? "blocked"
+                    : "pending"
             }
           >
             {data?.match === true
               ? "✓ Matched"
-              : data?.match === false
-                ? "Mismatch"
-                : "Unchecked"}
+              : data?.unexpectedRefundIds?.length
+                ? "Unexpected refund"
+                : data?.match === false
+                  ? "Mismatch"
+                  : "Unchecked"}
           </Chip>
         ),
       },
@@ -395,9 +408,11 @@ export function LedgerGrid({
         getRowClass={(p) =>
           p.data?.match === true && p.data.refundedCents > 0
             ? "row-complete"
-            : p.data?.match === false
-              ? "row-mismatch"
-              : ""
+            : p.data?.unexpectedRefundIds?.length
+              ? "row-unexpected"
+              : p.data?.match === false
+                ? "row-mismatch"
+                : ""
         }
         tooltipShowDelay={200}
         onRowClicked={(p) => {
@@ -407,7 +422,7 @@ export function LedgerGrid({
       />
       <div className="grid-foot">
         <span>{rows.length} orders · Gross amounts, before PayPal fees</span>
-        <span>Green rows have a refund verified against PayPal</span>
+        <span>Completed refunds in green · Unexpected refunds in violet</span>
       </div>
     </div>
   );

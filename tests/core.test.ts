@@ -33,7 +33,13 @@ describe("policy examples", () => {
       calculate(
         { ...base, deliveredAt: "2026-09-21" },
         ["P2.1"],
-        context.facts,
+        {
+          ...context.facts,
+          deliveryDates: {
+            promisedAt: base.promisedAt,
+            deliveredAt: "2026-09-21",
+          },
+        },
         context.now,
       ).lines,
     ).toEqual([]);
@@ -41,7 +47,13 @@ describe("policy examples", () => {
       calculate(
         { ...base, deliveredAt: "2026-09-22" },
         ["P2.1"],
-        context.facts,
+        {
+          ...context.facts,
+          deliveryDates: {
+            promisedAt: base.promisedAt,
+            deliveredAt: "2026-09-22",
+          },
+        },
         context.now,
       ).lines,
     ).toEqual([{ item: "shipping", cents: 800 }]);
@@ -49,7 +61,13 @@ describe("policy examples", () => {
       calculate(
         { ...base, deliveredAt: "2026-10-05" },
         ["P2.1", "P2.2"],
-        context.facts,
+        {
+          ...context.facts,
+          deliveryDates: {
+            promisedAt: base.promisedAt,
+            deliveredAt: "2026-10-05",
+          },
+        },
         context.now,
       ).lines,
     ).toEqual([]);
@@ -57,7 +75,13 @@ describe("policy examples", () => {
       calculate(
         { ...base, deliveredAt: "2026-10-06" },
         ["P2.1", "P2.2"],
-        context.facts,
+        {
+          ...context.facts,
+          deliveryDates: {
+            promisedAt: base.promisedAt,
+            deliveredAt: "2026-10-06",
+          },
+        },
         context.now,
       ).lines,
     ).toEqual([
@@ -72,10 +96,7 @@ describe("policy examples", () => {
     expect(
       calculate(order, ["P3.1"], context.facts, "2026-11-02").lines,
     ).toEqual([]);
-    for (const line of [
-      { ...order.lines[0], sale: true },
-      { ...order.lines[0], returnReceived: false },
-    ]) {
+    for (const line of [{ ...order.lines[0], sale: true }]) {
       expect(
         calculate(
           { ...order, lines: [line] },
@@ -85,15 +106,31 @@ describe("policy examples", () => {
         ).lines,
       ).toEqual([]);
     }
+    expect(
+      calculate(
+        order,
+        ["P3.1"],
+        { ...context.facts, returnReceived: false },
+        context.now,
+      ).lines,
+    ).toEqual([]);
     const two = {
       ...order,
       lines: [...order.lines, { ...order.lines[0], id: "bowl" }],
     };
     expect(
-      calculate(two, ["P3.1"], context.facts, context.now).lines.reduce(
-        (sum, line) => sum + line.cents,
-        0,
-      ),
+      calculate(
+        two,
+        ["P3.1"],
+        {
+          ...context.facts,
+          returnedItems: two.lines.map((line) => ({
+            item: line.id,
+            quantity: line.quantity,
+          })),
+        },
+        context.now,
+      ).lines.reduce((sum, line) => sum + line.cents, 0),
     ).toBe(9000);
   });
   it("blocks unknown, mixed and dependent-only clauses", () => {
@@ -151,6 +188,10 @@ describe("acceptance properties", () => {
           const result = guard({
             ...context,
             order: currentOrder,
+            facts: {
+              ...context.facts,
+              damagedItems: [{ item: "mug", quantity: 1 }],
+            },
             refundedCents: previous,
             refundedByLine: { mug: previous },
             approvedCents: requested,
@@ -236,6 +277,10 @@ describe("acceptance properties", () => {
           const result = guard({
             ...context,
             order: two,
+            facts: {
+              ...context.facts,
+              damagedItems: [{ item: "mug", quantity: qty }],
+            },
             proposal: { ...proposal, policy_clause_ids: ["P1.1"] },
           });
           expect(result.lines).toEqual([{ item: "mug", cents: price * qty }]);
@@ -254,13 +299,23 @@ describe("acceptance properties", () => {
           calculate(
             priced,
             ["P2.1", "P2.2"],
-            context.facts,
+            {
+              ...context.facts,
+              deliveryDates: {
+                promisedAt: priced.promisedAt,
+                deliveredAt: priced.deliveredAt,
+              },
+            },
             context.now,
           ).lines.find((line) => line.item === "mug")?.cents,
         ).toBe(Math.round(price * 0.15));
         expect(
-          calculate(priced, ["P3.1"], context.facts, context.now).lines[0]
-            .cents,
+          calculate(
+            priced,
+            ["P3.1"],
+            { ...context.facts, returnedItems: [{ item: "mug", quantity: 1 }] },
+            context.now,
+          ).lines[0].cents,
         ).toBe(Math.max(0, price - 600));
       }),
     ));

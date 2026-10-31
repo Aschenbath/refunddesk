@@ -1,7 +1,14 @@
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import type { DeskCase, LedgerRow, Order, Refund } from "../core/types.js";
+import {
+  emptyFacts,
+  type Facts,
+  type DeskCase,
+  type LedgerRow,
+  type Order,
+  type Refund,
+} from "../core/types.js";
 
 export class Store {
   readonly db: DatabaseSync;
@@ -20,6 +27,8 @@ export class Store {
       CREATE TABLE IF NOT EXISTS ledger(order_id TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS attempts(case_id TEXT PRIMARY KEY, order_id TEXT NOT NULL, request_id TEXT UNIQUE NOT NULL, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS webhook_events(id TEXT PRIMARY KEY);
+      CREATE TABLE IF NOT EXISTS seed_intents(id TEXT PRIMARY KEY, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS seed_batches(id TEXT PRIMARY KEY, data TEXT NOT NULL);
     `);
   }
   close() {
@@ -59,21 +68,58 @@ export class Store {
     return this.one<Order>("orders", id);
   }
   saveOrder(order: Order) {
+    const previous = this.getOrder(order.id);
     this.db
       .prepare("INSERT OR REPLACE INTO orders(id,data) VALUES(?,?)")
       .run(order.id, JSON.stringify(order));
+    if (previous && JSON.stringify(previous) !== JSON.stringify(order))
+      for (const value of this.listCases().filter(
+        (value) => value.orderId === order.id,
+      ))
+        this.saveCase(value, true);
   }
   listCases(): DeskCase[] {
-    return this.all<DeskCase>("cases").sort(
-      (a, b) =>
-        a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
-    );
+    return this.all<DeskCase>("cases")
+      .map((value) => this.normalizeCase(value))
+      .sort(
+        (a, b) =>
+          a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+      );
   }
   getCase(id: string): DeskCase | null {
-    return this.one<DeskCase>("cases", id);
+    const value = this.one<DeskCase>("cases", id);
+    return value ? this.normalizeCase(value) : null;
   }
-  saveCase(value: DeskCase) {
-    const { check, order, candidates, refunds, ...data } = value;
+  private normalizeCase(value: DeskCase): DeskCase {
+    // Existing model-promoted facts are proposals, never migrated into confirmations.
+    const legacy = value as DeskCase & {
+      facts?: { damagedLineIds: string[]; hasDamageEvidence: boolean };
+    };
+    const order = value.orderId ? this.getOrder(value.orderId) : null;
+    value.revision ??= 1;
+    value.proposedFacts ??= {
+      ...emptyFacts(),
+      damagedItems: (legacy.facts?.damagedLineIds || []).map((item) => ({
+        item,
+        quantity: order?.lines.find((line) => line.id === item)?.quantity || 1,
+      })),
+      hasDamageEvidence: legacy.facts?.hasDamageEvidence || false,
+    };
+    value.confirmedFacts ??= emptyFacts();
+    delete legacy.facts;
+    return value;
+  }
+  saveCase(value: DeskCase, forceRevision = false) {
+    const { check, order, candidates, refunds, ambiguous, attempt, ...data } =
+      value;
+    const old = this.getCase(value.id);
+    const comparable = (item: object) =>
+      JSON.stringify({ ...item, revision: 0 });
+    value.revision = old
+      ? old.revision +
+        (forceRevision || comparable(old) !== comparable(data) ? 1 : 0)
+      : 1;
+    data.revision = value.revision;
     this.db
       .prepare(
         "INSERT OR REPLACE INTO cases(id,order_id,status,data) VALUES(?,?,?,?)",
@@ -147,6 +193,33 @@ export class Store {
   listAttempts(): Attempt[] {
     return this.all<Attempt>("attempts");
   }
+  getSeedIntent(id: string): SeedIntent | null {
+    return this.one<SeedIntent>("seed_intents", id);
+  }
+  saveSeedIntent(value: SeedIntent) {
+    this.db
+      .prepare("INSERT OR REPLACE INTO seed_intents(id,data) VALUES(?,?)")
+      .run(value.id, JSON.stringify(value));
+  }
+  seedBatch(reset = false): { id: string; date: string } {
+    if (!reset) {
+      const existing = this.one<{ id: string; date: string }>(
+        "seed_batches",
+        "current",
+      );
+      if (existing) return existing;
+    }
+    const batch = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString().slice(0, 10),
+    };
+    this.db
+      .prepare(
+        "INSERT OR REPLACE INTO seed_batches(id,data) VALUES('current',?)",
+      )
+      .run(JSON.stringify(batch));
+    return batch;
+  }
 }
 export interface Attempt {
   caseId: string;
@@ -155,6 +228,36 @@ export interface Attempt {
   amountCents: number;
   currency: string;
   allocations: { item: string; cents: number }[];
-  state: "processing" | "done" | "uncertain";
+  id: string;
+  state: "submitted" | "pending" | "completed" | "failed" | "uncertain";
   createdAt: string;
+  revision: number;
+  snapshot: {
+    revision: number;
+    amountCents: number;
+    allocations: { item: string; cents: number }[];
+    clauseIds: string[];
+    facts: Facts;
+    order: Order;
+    duplicateOverride: string | null;
+  };
+  refundId?: string;
+  checkedAt?: string;
+  remoteAbsent?: boolean;
+  retryHistory?: { requestId: string; createdAt: string; reason: string }[];
+  returnFeeCaseId?: string | null;
+}
+export interface SeedIntent {
+  id: string;
+  batch: string;
+  kind: "capture" | "refund";
+  requestId: string;
+  invoiceId: string;
+  amountCents: number;
+  createdAt: string;
+  state: "intent" | "uncertain" | "done";
+  paypalOrderId?: string;
+  captureId?: string;
+  refundId?: string;
+  order?: Order;
 }
