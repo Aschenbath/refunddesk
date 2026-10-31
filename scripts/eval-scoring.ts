@@ -15,6 +15,8 @@ export interface Observation {
   proposedFacts: Facts; proposedTotal: number; allowanceCents: number; needsHuman: boolean;
   latencyMs: number; toolCalls: TriageTrace["toolCalls"]; proposal: Proposal;
   providerError: boolean; unsafeExecution: boolean;
+  /** Not sent: the run stopped calling the provider after repeated errors (usually an exhausted quota). */
+  skipped?: boolean;
 }
 const canonicalItems = (items: Facts["damagedItems"]) =>
   JSON.stringify(items.map(({ item, quantity }) => ({ item, quantity })).sort((a, b) => a.item.localeCompare(b.item) || a.quantity - b.quantity));
@@ -63,7 +65,8 @@ export function metrics(rows: ScoredCase[]) {
   const fn = rows.reduce((sum, row) => sum + row.score.clauses.falseNegatives + (row.observation.providerError ? row.score.clauses.truePositives : 0), 0);
   return {
     cases: rows.length, passed: rows.filter((row) => row.score.pass).length,
-    providerErrors: rows.filter((row) => row.observation.providerError).length,
+    providerErrors: rows.filter((row) => row.observation.providerError && !row.observation.skipped).length,
+    skipped: rows.filter((row) => row.observation.skipped).length,
     order: rate("order"), needsHuman: rate("needsHuman"), intent: rate("intent"), damaged: rate("damaged"),
     clausePrecision: { correct: tp, total: tp + fp }, clauseRecall: { correct: tp, total: tp + fn },
     modelOverAsk: rows.filter((row) => !row.observation.providerError && !row.score.checks.modelWithinMax).length,

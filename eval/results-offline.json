@@ -2,11 +2,14 @@
   "mode": "offline",
   "provider": "local keyword fallback",
   "model": "keyword-baseline",
+  "run": "4f85e9f74e3e618e",
   "seedDate": "2026-10-31",
+  "complete": true,
   "overall": {
     "cases": 30,
     "passed": 7,
     "providerErrors": 0,
+    "skipped": 0,
     "order": {
       "correct": 30,
       "total": 30
@@ -40,6 +43,7 @@
       "cases": 10,
       "passed": 1,
       "providerErrors": 0,
+      "skipped": 0,
       "order": {
         "correct": 10,
         "total": 10
@@ -72,6 +76,7 @@
       "cases": 1,
       "passed": 0,
       "providerErrors": 0,
+      "skipped": 0,
       "order": {
         "correct": 1,
         "total": 1
@@ -104,6 +109,7 @@
       "cases": 4,
       "passed": 0,
       "providerErrors": 0,
+      "skipped": 0,
       "order": {
         "correct": 4,
         "total": 4
@@ -136,6 +142,7 @@
       "cases": 6,
       "passed": 2,
       "providerErrors": 0,
+      "skipped": 0,
       "order": {
         "correct": 6,
         "total": 6
@@ -168,6 +175,7 @@
       "cases": 6,
       "passed": 2,
       "providerErrors": 0,
+      "skipped": 0,
       "order": {
         "correct": 6,
         "total": 6
@@ -200,6 +208,7 @@
       "cases": 3,
       "passed": 2,
       "providerErrors": 0,
+      "skipped": 0,
       "order": {
         "correct": 3,
         "total": 3
@@ -307,7 +316,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "46986b76c3650225"
     },
     {
       "id": "E02",
@@ -383,7 +393,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "60e5bc41ceaaa927"
     },
     {
       "id": "E03",
@@ -449,7 +460,8 @@
           "falsePositives": 0,
           "falseNegatives": 2
         }
-      }
+      },
+      "input": "4944c1ce9dced23d"
     },
     {
       "id": "E04",
@@ -516,7 +528,8 @@
           "falsePositives": 0,
           "falseNegatives": 2
         }
-      }
+      },
+      "input": "8d879fde0da17c3d"
     },
     {
       "id": "E05",
@@ -582,7 +595,8 @@
           "falsePositives": 0,
           "falseNegatives": 2
         }
-      }
+      },
+      "input": "b4c7e97ea65b4ec3"
     },
     {
       "id": "E06",
@@ -648,7 +662,8 @@
           "falsePositives": 0,
           "falseNegatives": 2
         }
-      }
+      },
+      "input": "4857cf8aa861c006"
     },
     {
       "id": "E07",
@@ -722,7 +737,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "99cbe2bfbc5919ba"
     },
     {
       "id": "E08",
@@ -805,7 +821,8 @@
           "falsePositives": 1,
           "falseNegatives": 2
         }
-      }
+      },
+      "input": "9d080ceaed6c403c"
     },
     {
       "id": "E09",
@@ -879,7 +896,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "3195db2bae26734d"
     },
     {
       "id": "E10",
@@ -944,7 +962,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "76145ddca63bcc21"
     },
     {
       "id": "E11",
@@ -1025,7 +1044,8 @@
           "falsePositives": 1,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "a8eaef2537997737"
     },
     {
       "id": "E12",
@@ -1089,7 +1109,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "abe0b3034277c712"
     },
     {
       "id": "E13",
@@ -1110,7 +1131,7 @@
         "proposedTotal": 0,
         "allowanceCents": 0,
         "needsHuman": true,
-        "latencyMs": 0,
+        "latencyMs": 2,
         "toolCalls": [],
         "proposal": {
           "matched_order_id": null,
@@ -1149,7 +1170,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "f1b2d0a3d8020f64"
     },
     {
       "id": "E14",
@@ -1207,7 +1229,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "639ba754c8b140d9"
     },
     {
       "id": "E15",
@@ -1286,7 +1309,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "6d9004406601a419"
     },
     {
       "id": "E16",
@@ -1346,7 +1370,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "bbbfa1a6c973ebae"
     },
     {
       "id": "E17",
@@ -1404,7 +1429,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "7a13185443263c30"
     },
     {
       "id": "E18",
@@ -1481,7 +1507,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "9cfc9d418d679fc8"
     },
     {
       "id": "E19",
@@ -1561,7 +1588,8 @@
           "falsePositives": 1,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "da5b2f429fe08a84"
     },
     {
       "id": "E20",
@@ -1640,7 +1668,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "1e6326a0ad5e2fab"
     },
     {
       "id": "E21",
@@ -1701,7 +1730,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "979c757d8442ab47"
     },
     {
       "id": "E22",
@@ -1779,7 +1809,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "1a80502253409cf2"
     },
     {
       "id": "E23",
@@ -1858,7 +1889,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "9b5643beb003e6a8"
     },
     {
       "id": "E24",
@@ -1921,7 +1953,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "f6ffb66f93c4f9cd"
     },
     {
       "id": "E25",
@@ -1980,7 +2013,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "e9852a07a068f346"
     },
     {
       "id": "E26",
@@ -2043,7 +2077,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "30b8796382c71ed4"
     },
     {
       "id": "E27",
@@ -2104,7 +2139,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "906d4afa71e5b3fa"
     },
     {
       "id": "E28",
@@ -2183,7 +2219,8 @@
           "falsePositives": 0,
           "falseNegatives": 1
         }
-      }
+      },
+      "input": "5b07998b8dd4f743"
     },
     {
       "id": "E29",
@@ -2261,7 +2298,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "6d456760d2e475eb"
     },
     {
       "id": "E30",
@@ -2340,7 +2378,8 @@
           "falsePositives": 0,
           "falseNegatives": 0
         }
-      }
+      },
+      "input": "d5a987a616406a18"
     }
   ]
 }

@@ -77,20 +77,31 @@ The unchanged 30 held-out cases were independently written by Claude Code.
 Each runs through the real triage path in an isolated in-memory copy of the shared 25-order seed book,
 including FC-1004’s prior $12 refund, with fixed dates and no payment calls. The prompt was not tuned.
 
+**Offline keyword baseline: 7/30 cases pass under the original labels; 17/27 intent agreement.**
+
 | Offline keyword baseline | Result |
 |---|---:|
-| Order matching | 30/30 (100%) |
+| Order matching (any accepted order, including "no match" where allowed) | 30/30 |
 | Needs-human agreement | 15/26 (58%) |
 | Intent agreement | 17/27 (63%) |
-| Clause precision / recall | 6/9 (67%) / 6/26 (23%) |
-| Damaged-unit exact match | 18/30 (60%) |
+| Clause precision / recall (labelled clauses only) | 6/9 / 6/26 |
+| Damaged-unit exact match | 5/11 cases with damage, 13/19 without (18/30) |
 | All applicable checks pass | 7/30 |
 | Model over-ask / unsafe allowance / unsafe execution | 10 / 0 / 0 |
 
-These numbers establish a baseline, **not proof of live-model quality**. No AI key was available for the online run.
+These numbers establish a baseline, **not proof of live-model quality**.
+The held-out online run is a quota-limited evaluation in progress on a free Gemini tier;
+[RESULTS.md](eval/RESULTS.md) shows answered, provider-error and not-yet-sent counts with the model and run ID once it starts.
+An earlier live spot check, run during development on 12 of the seeded demo messages rather than the held-out set,
+triaged 11 correctly; the twelfth hit a rate limit and went to a human. It is preliminary, not a held-out result.
+Four labels were later found to name a sender who does not own the order (E03, E09, E22, E24);
+they are listed as [errata](eval/RESULTS.md#safety-proof-and-label-notes) and left unchanged.
 `any` labels are excluded from agreement denominators. Needs-human measures escalation using proposed facts;
-real approval separately requires confirmed facts. Every recorded model output is tested against the approval bound.
+real approval separately requires confirmed facts. Precision ignores cited clauses a case leaves unlabelled.
+As engineering evidence rather than a model score, every recorded model output is also replayed through the real
+approval service: amounts above the calculator allowance are rejected before any payment call.
 The report distinguishes model over-ask, unsafe proposed-fact allowance and unsafe execution.
+`--resume` reuses an answer only when the model, prompt, schema, policies, seed book and message text all match.
 
 ```sh
 npm run eval -- --mode offline
@@ -99,7 +110,8 @@ npm run eval -- --mode online
 
 For online evaluation set `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL`.
 Gemini works via `https://generativelanguage.googleapis.com/v1beta/openai` with `gemini-3.5-flash`.
-Calls are sequential, 300 ms apart; rate limits/timeouts get one retry with backoff.
+Calls are sequential, 300 ms apart (`EVAL_DELAY_MS`); rate limits/timeouts get one retry with backoff.
+Results are saved after every case; add `--resume` to continue after a quota stop.
 Provider errors remain errors and cannot count as passes. Results contain no credentials.
 `--use-env-proxy` / `NODE_USE_ENV_PROXY=1` honors `HTTPS_PROXY` and `NO_PROXY`.
 
@@ -118,7 +130,8 @@ CSV export uses `exportDataAsCsv`, dollar amounts, readable headers, filtered/so
 Queue Approved values are the current approval amount; completed case receipts are shown separately in Refunded.
 
 The grid loads lazily. A build adapter separates AG Grid’s flattened ESM into dependency groups without rewriting
-its statements; cycle groups and initializers stay together. The installed package shape and output size are tested.
+its statements; cycle groups and initializers stay together. Tests check the installed package shape and the size of the
+generated source groups; final chunk sizes come from the production build.
 Production browser checks cover the resulting chunks. No JS chunk exceeds 500 kB.
 
 ## Safety model
@@ -146,13 +159,14 @@ Replies are drafts for copying or marking sent; the app does not send email auto
 - [x] Zero-key replay snapshot with recorded sandbox receipts and deterministic simulated refunds.
 - [x] Per-triage trace, manual fallback, explicit fact confirmation and held-out offline evaluation.
 - [x] Community filters, saved views, pinned totals, CSV export and persisted layouts.
-- [ ] Online held-out evaluation remains to be run with an AI key; keyword inference is weak across languages/items.
+- [ ] Online held-out evaluation is in progress under free-tier quota; keyword inference is weak across languages/items.
 - [ ] Webhook verification and event processing are tested with mocks; no deployed live webhook verification claimed.
 - [ ] Sandbox only; no production-money integration or delivery-carrier/return-warehouse verification.
 - [ ] Human fact confirmation remains necessary; zero unsafe execution does not prove model facts are true.
 - [ ] Inbox transport, automatic reply sending and multi-owner roles are not implemented.
-- [ ] `@paypal/agent-toolkit` is installed but not used: its refund schema differs from the app’s capture-based,
-  integer-cent, idempotent approval contract. `npm run check:toolkit` documents the mismatch.
+- [ ] `@paypal/agent-toolkit` is installed but not used. Its tools expose the older AI SDK `parameters` shape, not the
+  `inputSchema` this app's AI SDK expects (`npm run check:toolkit` prints this). The app's AI only gets read-only tools;
+  refunds go through the owner-approval service, which calls the PayPal REST endpoints above directly.
 
 ## Run with real sandbox keys
 
@@ -168,7 +182,8 @@ npm run dev
 ```
 
 Seed requests are resumable; rerun without `--reset` after interruption.
-`npm run demo` always uses replay, skips `.env`, and does not change the live database.
+`npm run demo` always uses replay: neither the server nor Vite reads `.env`, the live database is untouched,
+and `seed`, `live` and `demo:snapshot` refuse to run under `DEMO_MODE=replay`.
 For production run `npm run build && npm start` (one HTTP service).
 
 ### Render
