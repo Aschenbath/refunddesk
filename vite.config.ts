@@ -19,6 +19,7 @@ export default defineConfig({
   },
   server: {
     port: 15481,
-    proxy: { "/api": `http://127.0.0.1:${process.env.PORT || 15480}` },
+    // Preserve the browser's Host so Hono can validate Origin on local POSTs.
+    proxy: { "/api": { target: `http://127.0.0.1:${process.env.PORT || 15480}`, changeOrigin: false } },
   },
 });

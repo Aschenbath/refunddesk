@@ -128,6 +128,8 @@ Layouts use the grid state API and guarded `localStorage`; **Reset layout** rest
 Pinned bottom rows sum only currently filtered rows, and update after filters and server-validated edits.
 CSV export uses `exportDataAsCsv`, dollar amounts, readable headers, filtered/sorted rows, and formula-safe customer text.
 Queue Approved values are the current approval amount; completed case receipts are shown separately in Refunded.
+Queue review batches replace queue-wide triage with Community checkbox selection (header selects filtered rows), selected model/allowance totals and blocked/ready/refunded counts; row click or Enter still opens a case. Selection survives filters and refreshes, clears on reload, and uses **Clear selection** for hidden rows.
+The bar offers sequential **Triage selected** (new cases only, with skips/failures reported), **Reconcile selected orders** once per distinct order, and formula-safe **Export outcomes** in place of view export while selected. Outcomes include status, current approved/completed refund amounts, case refund IDs and blocking reasons; approvals remain individual and revision-bound. Replay UI checks cover selection, exports and partial batch failures.
 
 The grid loads lazily. A build adapter separates AG Grid’s flattened ESM into dependency groups without rewriting
 its statements; cycle groups and initializers stay together. Tests check the installed package shape and the size of the
@@ -184,6 +186,7 @@ npm run dev
 Seed requests are resumable; rerun without `--reset` after interruption.
 `npm run demo` always uses replay: neither the server nor Vite reads `.env`, the live database is untouched,
 and `seed`, `live` and `demo:snapshot` refuse to run under `DEMO_MODE=replay`.
+The local Vite API proxy preserves Host so browser POSTs pass the server's existing same-origin checks.
 For production run `npm run build && npm start` (one HTTP service).
 
 ### Render
@@ -227,8 +230,9 @@ and `OWNER_PASSWORD`; it makes a $1 sandbox capture, a $0.40 refund and a $0.10 
 Unit/property tests cover policy arithmetic, auth, concurrency, fact confirmation, lifecycle, recovery,
 exact reconciliation, scoring and execution bounds for every recorded held-out output.
 Screenshots and local verification evidence are in `output/playwright/`.
-With a replay demo open in Playwright CLI, run `playwright-cli run-code --filename scripts/verify-ui.mjs`
+With a fresh replay demo open in Playwright CLI, run `playwright-cli run-code --filename scripts/verify-ui.mjs`
 to check filters, persisted views, keyboard review, CSV values and both screenshot sizes.
+Batch checks add temporary messages to replay memory; restart the demo before rerunning.
 
 ## How it was built
 

@@ -1,6 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { DeskCase, LedgerRow, Order } from "../core/types.js";
 import { api, money, ApiError } from "./api.js";
+import type { BatchAction, BatchReport } from "./review-batch.js";
 const QueueGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.QueueGrid })));
 const LedgerGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.LedgerGrid })));
 import { Drawer } from "./Drawer.js";
@@ -31,6 +32,8 @@ export function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const running = useRef(false);
+  const [batchReport, setBatchReport] = useState<BatchReport | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -75,6 +78,8 @@ export function App() {
       operation: () => Promise<unknown>,
       message = "",
     ): Promise<boolean> => {
+      if (running.current) return false;
+      running.current = true;
       setBusy(true);
       setError("");
       setNotice("");
@@ -101,6 +106,7 @@ export function App() {
         }
         return false;
       } finally {
+        running.current = false;
         setBusy(false);
       }
     },
@@ -121,6 +127,35 @@ export function App() {
     },
     [run],
   );
+  const onBatch = (action: BatchAction, ids: string[]) => {
+    void run(async () => {
+      const selected = cases.filter((value) => ids.includes(value.id));
+      const skipped: string[] = [], failed: string[] = [];
+      const targets = action === "triage" ? selected.map((value) => value.id) : [...new Set(selected.flatMap((value) => value.orderId ? [value.orderId] : []))];
+      if (action === "reconcile") for (const value of selected) if (!value.orderId) skipped.push(`${value.id}: no matched order`);
+      let completed = 0;
+      const report = (summary: string) => setBatchReport({ summary, details: [...skipped.map((text) => `Skipped ${text}`), ...failed] });
+      for (const [index, id] of targets.entries()) {
+        report(`${action === "triage" ? "Triaging" : "Reconciling"} ${index + 1}/${targets.length}…`);
+        try {
+          if (action === "triage") {
+            // Recheck just before each request: a queued case may have changed in another session.
+            const value = await api<DeskCase>(`/cases/${encodeURIComponent(id)}`);
+            if (value.status !== "new") { skipped.push(`${id}: ${value.status.replaceAll("_", " ")}`); continue; }
+            await api(`/cases/${encodeURIComponent(id)}/triage`, "POST");
+          } else {
+            const result = await api<LedgerRow>(`/orders/${encodeURIComponent(id)}/reconcile`, "POST");
+            if (result.error || result.match === false) throw new Error(result.error || "Ledger mismatch; review this order.");
+          }
+          completed++;
+        } catch (error) {
+          failed.push(`${id}: ${error instanceof Error ? error.message : "Request failed"}`);
+          if (error instanceof ApiError && error.status === 401) { report("Batch stopped: sign in again."); throw error; }
+        }
+      }
+      report(`${action === "triage" ? "Triage" : "Reconciliation"}: ${completed} ${action === "triage" ? "triaged" : `order${completed === 1 ? "" : "s"} matched`} · ${skipped.length} skipped · ${failed.length} failed${failed.length ? " — expand for details" : ""}`);
+    });
+  };
   const current = cases.find((value) => value.id === selected);
   const ready = cases.filter(
     (value) =>
@@ -143,6 +178,7 @@ export function App() {
     setSearch("");
     setSelected(null);
     setNotice("");
+    setBatchReport(null);
   };
   const action = (action: string, body?: unknown) => {
     if (!selected) return;
@@ -329,25 +365,7 @@ export function App() {
                   : "Bring in a customer message. We’ll find the order and prepare it for review."}
             </p>
           </div>
-          {view === "queue" ? (
-            <button
-              className="button primary"
-              disabled={
-                busy ||
-                loading ||
-                !cases.some((value) => value.status === "new")
-              }
-              onClick={() =>
-                void run(
-                  () => api("/triage", "POST"),
-                  "New messages triaged. Proposals are ready to review.",
-                )
-              }
-            >
-              <span>✧</span>
-              {busy ? "Working…" : "Triage new messages"}
-            </button>
-          ) : view === "ledger" ? (
+          {view === "ledger" ? (
             <button
               className="button primary"
               disabled={busy || loading || !orders.length}
@@ -361,13 +379,13 @@ export function App() {
               <span>↻</span>
               {busy ? "Checking PayPal…" : "Reconcile all orders"}
             </button>
-          ) : (
+          ) : view === "inbox" ? (
             <span className="mode-label">
               {aiMode === "offline"
                 ? "Offline triage available"
                 : "AI provider connected"}
             </span>
-          )}
+          ) : null}
         </div>
         {error && (
           <div className="banner error" role="alert">
@@ -623,6 +641,9 @@ export function App() {
                 search={search}
                 onSearch={setSearch}
                 onSelect={setSelected}
+                busy={busy}
+                batchReport={batchReport}
+                onBatch={onBatch}
                 onAmount={(id, cents) =>
                   void run(() =>
                     api(`/cases/${id}`, "PATCH", { approvedCents: cents }),
