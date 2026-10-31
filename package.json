@@ -2,6 +2,7 @@
   "name": "refunddesk",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "node --import ./scripts/register.mjs scripts/dev.ts",
     "dev:server": "node --watch --import ./scripts/register.mjs src/server/index.ts",
