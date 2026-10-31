@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DeskCase, Order } from "../core/types.js";
 import { policies } from "../core/policies.js";
 import { money, parseAmount } from "./api.js";
-import { Chip } from "./Grid.js";
+import { Chip } from "./Chip.js";
 import { FactConfirmation } from "./FactConfirmation.js";
 
 function Message({ text, spans }: { text: string; spans: string[] }) {
@@ -92,7 +92,7 @@ export function Drawer({
     ["refunded", "rejected", "processing", "pending"].includes(value.status);
   const amountCents = parseAmount(amount);
   const changed = amountCents !== value.check?.approvedCents;
-  const matchingOrders = orders.filter((order) =>
+  const matchingOrders = (value.candidates || []).filter((order) =>
     `${order.id} ${order.customerName} ${order.email}`
       .toLowerCase()
       .includes(orderQuery.toLowerCase()),
@@ -164,10 +164,18 @@ export function Drawer({
             <div className="message">
               <Message
                 text={value.message}
-                spans={value.proposal?.match_evidence || []}
+                spans={value.triageTrace?.evidenceSpans || value.proposal?.match_evidence || []}
               />
             </div>
           </section>
+          {value.triageTrace && <details className="ai-trace">
+            <summary>How the AI got here</summary>
+            <p className="trace-model">{value.triageTrace.source === "live" ? `${value.triageTrace.provider} · ${value.triageTrace.model}` : value.triageTrace.source === "manual" ? "Owner manual review" : value.triageTrace.source === "unavailable" ? "Provider unavailable — keyword fallback" : "Demo fixture, not a live model call"}</p>
+            <p className="helper">{value.triageTrace.model} · {value.triageTrace.latencyMs} ms · {value.triageTrace.attempts} attempts</p>
+            {value.triageTrace.toolCalls.length ? <ol className="trace-tools">{value.triageTrace.toolCalls.map((call, index) => <li key={index}><strong>{call.name}</strong><span>Attempt {call.attempt}</span><code>{JSON.stringify(call.arguments)}</code><p>{call.summary}</p></li>)}</ol> : <p className="helper">No model tool calls were made.</p>}
+            <div className="amount-compare"><div><span>Model proposal</span><strong>{money(value.triageTrace.proposal.proposed_total)}</strong></div><div><span>Proposed-facts allowance</span><strong>{money(value.triageTrace.calculatorAllowanceCents ?? value.proposedCheck?.computedCents)}</strong></div></div>
+            <p className="helper">{value.triageTrace.evidenceSpans.length ? `Cited message spans: ${value.triageTrace.evidenceSpans.map((span) => `“${span}”`).join(", ")}` : "No verbatim message spans cited."} Owner-confirmed facts set the final allowance.</p>
+          </details>}
           {!value.proposal ? (
             <div className="notice pending">
               <strong>Ready for a first look.</strong>
@@ -179,6 +187,7 @@ export function Drawer({
               >
                 Triage this case
               </button>
+              <button className="button secondary" disabled={busy || locked} onClick={() => { setShowMatch(true); void onEdit({ intent: "refund" }); }}>Review manually</button>
             </div>
           ) : (
             <>
@@ -226,8 +235,11 @@ export function Drawer({
                     Pick the right order to continue.
                   </div>
                 )}
-                {(showMatch || !value.order || value.ambiguous) && (
+                {(showMatch || !value.order || value.ambiguous || value.error) && (
                   <div className="fact-editor">
+                    <label>Intent<select aria-label="Case intent" disabled={busy || locked} value={value.proposal.intent} onChange={(event) => void onEdit({ intent: event.target.value })}>
+                      <option value="refund">Refund</option><option value="exchange">Exchange</option><option value="question">Question</option><option value="other">Other</option>
+                    </select></label>
                     {value.ambiguous && (
                       <div className="notice blocked">
                         Conflicting references or customer identity. A human
@@ -324,6 +336,7 @@ export function Drawer({
                         Include 15% item refund after 20 business days
                       </label>
                     )}
+                    <details className="manual-clauses"><summary>Review individual clauses</summary>{policies.map((policy) => <label key={policy.id} className="check-label"><input type="checkbox" disabled={busy || locked} checked={value.proposal!.policy_clause_ids.includes(policy.id)} onChange={(event) => void onEdit({ clauseIds: event.target.checked ? [...value.proposal!.policy_clause_ids, policy.id] : value.proposal!.policy_clause_ids.filter((id) => id !== policy.id) })} />{policy.id} · {policy.text}</label>)}</details>
                   </div>
                 )}
               </section>

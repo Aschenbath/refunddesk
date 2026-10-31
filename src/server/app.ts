@@ -34,6 +34,7 @@ const editSchema = z
     orderId: z.string().min(1).optional(),
     approvedCents: z.number().int().positive().optional(),
     clauseIds: z.array(z.string()).max(8).optional(),
+    intent: z.enum(["refund", "exchange", "question", "other"]).optional(),
     confirmedFacts: factsSchema.optional(),
     duplicateOverride: z.string().min(8).max(1000).nullable().optional(),
     replyDraft: z.string().max(8000).optional(),
@@ -147,7 +148,7 @@ export function createApp(
     return c.json({ authenticated: false });
   });
   app.get("/api/health", (c) =>
-    c.json({ ok: true, aiMode: config.aiMode, environment: "sandbox" }),
+    c.json({ ok: true, aiMode: config.demoMode === "replay" ? "offline" : config.aiMode, environment: "sandbox", demoMode: config.demoMode }),
   );
   app.get("/api/policies", (c) => c.json(policies));
   app.get("/api/orders", (c) => {

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import type { DeskCase, LedgerRow, Order } from "../core/types.js";
 import { api, money, ApiError } from "./api.js";
-import { QueueGrid, LedgerGrid } from "./Grid.js";
+const QueueGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.QueueGrid })));
+const LedgerGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.LedgerGrid })));
 import { Drawer } from "./Drawer.js";
 
 function Leaf() {
@@ -34,8 +35,7 @@ export function App() {
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-  const [grouped, setGrouped] = useState(false);
+  const [demoMode, setDemoMode] = useState("");
   const [form, setForm] = useState({
     sender: "",
     email: "",
@@ -62,9 +62,9 @@ export function App() {
         if (!session.authenticated) return;
         await Promise.all([
           refresh(),
-          api<{ aiMode: string }>("/health").then((result) =>
-            setAiMode(result.aiMode),
-          ),
+          api<{ aiMode: string; demoMode: string }>("/health").then((result) => {
+            setAiMode(result.aiMode); setDemoMode(result.demoMode);
+          }),
         ]);
       })
       .catch((error) => setError(error.message))
@@ -203,8 +203,9 @@ export function App() {
                 setPassword("");
                 setAuthenticated(true);
                 await refresh();
-                const health = await api<{ aiMode: string }>("/health");
+                const health = await api<{ aiMode: string; demoMode: string }>("/health");
                 setAiMode(health.aiMode);
+                setDemoMode(health.demoMode);
               })
               .catch((error) => setError(error.message))
               .finally(() => setBusy(false));
@@ -241,6 +242,7 @@ export function App() {
     );
   return (
     <div className="app-shell">
+      {demoMode === "replay" && <div className="replay-badge" role="status">Replay demo — no money moves, no keys needed</div>}
       <header className="topbar">
         <a className="brand" href="/" aria-label="RefundDesk home">
           <span className="brand-symbol">
@@ -614,75 +616,12 @@ export function App() {
           </div>
         ) : (
           <>
-            <div className="grid-toolbar">
-              <div className="view-tabs">
-                {view === "queue" ? (
-                  <>
-                    <button
-                      className={status === "all" ? "active" : ""}
-                      onClick={() => setStatus("all")}
-                    >
-                      All cases <span>{cases.length}</span>
-                    </button>
-                    <button
-                      className={status === "review" ? "active" : ""}
-                      onClick={() => setStatus("review")}
-                    >
-                      Awaiting review
-                    </button>
-                    <button
-                      className={status === "refunded" ? "active" : ""}
-                      onClick={() => setStatus("refunded")}
-                    >
-                      Refunded
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <strong>Payment records</strong>
-                    <span className="ledger-description">
-                      Capture → refund → reconciliation
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="grid-controls">
-                <label className="search-box">
-                  <span>⌕</span>
-                  <input
-                    aria-label={`Search ${view}`}
-                    placeholder={
-                      view === "queue" ? "Search cases…" : "Search payments…"
-                    }
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
-                  {search && (
-                    <button
-                      aria-label="Clear search"
-                      onClick={() => setSearch("")}
-                    >
-                      ×
-                    </button>
-                  )}
-                </label>
-                {view === "queue" && (
-                  <button
-                    className={`button group-button ${grouped ? "selected" : ""}`}
-                    aria-pressed={grouped}
-                    onClick={() => setGrouped(!grouped)}
-                  >
-                    ☷ Group by status
-                  </button>
-                )}
-              </div>
-            </div>
+            <Suspense fallback={<div className="loading-state">Opening grid?</div>}>
             {view === "queue" ? (
               <QueueGrid
                 cases={cases}
                 search={search}
-                status={status}
-                grouped={grouped}
+                onSearch={setSearch}
                 onSelect={setSelected}
                 onAmount={(id, cents) =>
                   void run(() =>
@@ -699,10 +638,12 @@ export function App() {
               <LedgerGrid
                 rows={ledger}
                 search={search}
+                onSearch={setSearch}
                 busy={busy}
                 onReconcile={onReconcile}
               />
             )}
+            </Suspense>
             <div className="desk-note">
               <span>
                 <i />

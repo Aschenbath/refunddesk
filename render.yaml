@@ -29,6 +29,9 @@ services:
         value: sandbox
       - key: AI_MODE
         value: offline
+      # Set to replay for a key-free hosted demo. Owner authentication is still required.
+      - key: DEMO_MODE
+        value: ""
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET

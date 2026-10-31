@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-if (existsSync(".env")) process.loadEnvFile(".env");
+if (process.env.DEMO_MODE !== "replay" && existsSync(".env")) process.loadEnvFile(".env");
 export const config = {
   nodeEnv: process.env.NODE_ENV || "development",
+  demoMode: process.env.DEMO_MODE || "",
   ownerPassword: process.env.OWNER_PASSWORD || "",
   sessionSecret: process.env.SESSION_SECRET || randomBytes(32).toString("hex"),
   publicOrigin: process.env.PUBLIC_ORIGIN || "",

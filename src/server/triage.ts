@@ -8,6 +8,7 @@ import {
   type Proposal,
   emptyFacts,
   type Facts,
+  type TriageTrace,
 } from "../core/types.js";
 import { policies } from "../core/policies.js";
 import { config } from "./config.js";
@@ -58,7 +59,7 @@ export function identityConflict(
     normalize(order.customerName) !== normalize(value.sender)
   );
 }
-export function readonlyTools(store: Store, value?: DeskCase) {
+export function readonlyTools(store: Store, value?: DeskCase, trace?: TriageTrace, attempt = 1) {
   return {
     lookup_orders: tool({
       description:
@@ -73,13 +74,18 @@ export function readonlyTools(store: Store, value?: DeskCase) {
         const allowed = new Set(
           value ? candidatesFor(store, value).map((order) => order.id) : [],
         );
-        return store.lookup(query).filter((order) => allowed.has(order.id));
+        const result = store.lookup(query).filter((order) => allowed.has(order.id));
+        trace?.toolCalls.push({ name: "lookup_orders", arguments: query, summary: `${result.length} orders: ${result.map((order) => order.id).join(", ") || "none"}`, attempt });
+        return result;
       },
     }),
     read_policies: tool({
       description: "Read the merchant policy clauses and their rules.",
       inputSchema: z.object({}),
-      execute: async () => policies,
+      execute: async () => {
+        trace?.toolCalls.push({ name: "read_policies", arguments: {}, summary: `${policies.length} policy clauses: ${policies.map((policy) => policy.id).join(", ")}`, attempt });
+        return policies;
+      },
     }),
   };
 }
@@ -143,12 +149,14 @@ export function fallback(value: DeskCase, candidates: Order[]): Proposal {
 }
 export async function validatedTriage(
   generate: (attempt: number) => Promise<unknown>,
+  onError?: (error: unknown, attempt: number) => Promise<void>,
 ): Promise<Proposal | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = proposalSchema.safeParse(await generate(attempt));
       if (result.success) return result.data;
     } catch (error) {
+      await onError?.(error, attempt);
       // Retry once, then hand over to a human.
       console.warn(
         `Triage attempt ${attempt + 1} failed: ${redactError(error)}`,
@@ -160,33 +168,47 @@ export async function validatedTriage(
 export async function triage(
   store: Store,
   value: DeskCase,
-): Promise<{ proposal: Proposal; unavailable: boolean }> {
+  settings: TriageSettings = {},
+): Promise<{ proposal: Proposal; unavailable: boolean; trace?: TriageTrace }> {
+  const aiConfig = { ...config, ...settings };
+  const started = performance.now();
+  const trace: TriageTrace = { provider: "OpenAI-compatible", model: aiConfig.aiModel || "keyword-baseline", source: "live", latencyMs: 0, attempts: 0, toolCalls: [], evidenceSpans: [], proposal: null as unknown as Proposal };
+  try { if (aiConfig.aiBaseUrl) trace.provider = new URL(aiConfig.aiBaseUrl).hostname; } catch { /* Invalid endpoints are handled by provider fallback. */ }
+  const finish = (proposal: Proposal, unavailable: boolean) => {
+    trace.latencyMs = Math.round(performance.now() - started);
+    trace.evidenceSpans = proposal.match_evidence.filter((span) => value.message.toLowerCase().includes(span.toLowerCase()));
+    trace.proposal = structuredClone(proposal);
+    return { proposal, unavailable, trace };
+  };
   const candidates = candidatesFor(store, value);
   const order = value.orderId
     ? store.getOrder(value.orderId)
     : candidates.length === 1
       ? candidates[0]
       : null;
-  if (config.aiMode === "offline")
-    return {
-      proposal: proposalSchema.parse(
-        fixtureProposal(value, order) || fallback(value, candidates),
-      ),
-      unavailable: false,
-    };
-  if (!config.aiBaseUrl || !config.aiApiKey || !config.aiModel)
-    return { proposal: fallback(value, candidates), unavailable: true };
+  if (aiConfig.aiMode === "offline") {
+    const fixture = settings.useFixtures === false ? null : fixtureProposal(value, order);
+    trace.source = fixture ? "fixture" : "offline";
+    trace.provider = "local";
+    trace.model = fixture ? "recorded-demo-fixture" : "keyword-baseline";
+    return finish(proposalSchema.parse(fixture || fallback(value, candidates)), false);
+  }
+  if (!aiConfig.aiBaseUrl || !aiConfig.aiApiKey || !aiConfig.aiModel) {
+    trace.source = "unavailable";
+    return finish(fallback(value, candidates), true);
+  }
   const proposal = await validatedTriage(async (attempt) => {
+    trace.attempts = attempt + 1;
     const provider = createOpenAICompatible({
       name: "refunddesk",
-      baseURL: config.aiBaseUrl,
-      apiKey: config.aiApiKey,
+      baseURL: aiConfig.aiBaseUrl,
+      apiKey: aiConfig.aiApiKey,
       // Without this the SDK sends plain JSON mode and the model invents its own field names.
       supportsStructuredOutputs: true,
     });
     const result = await generateText({
-      model: provider.chatModel(config.aiModel),
-      tools: readonlyTools(store, value),
+      model: provider.chatModel(aiConfig.aiModel),
+      tools: readonlyTools(store, value, trace, attempt + 1),
       stopWhen: stepCountIs(5),
       maxRetries: 0,
       timeout: 45000,
@@ -201,11 +223,25 @@ export async function triage(
       }),
     });
     return result.output;
+  }, async (error, attempt) => {
+    if (attempt === 0 && isRetryableProviderError(error))
+      await new Promise((resolve) => setTimeout(resolve, settings.retryDelayMs ?? 1500));
   });
-  return {
-    proposal: proposal || fallback(value, candidates),
-    unavailable: !proposal,
-  };
+  if (!proposal) trace.source = "unavailable";
+  return finish(proposal || fallback(value, candidates), !proposal);
+}
+export interface TriageSettings {
+  aiMode?: string;
+  aiBaseUrl?: string;
+  aiApiKey?: string;
+  aiModel?: string;
+  useFixtures?: boolean;
+  retryDelayMs?: number;
+}
+export function isRetryableProviderError(error: unknown): boolean {
+  const value = error as { statusCode?: number; name?: string; cause?: unknown };
+  return value?.statusCode === 429 || /timeout|abort/i.test(value?.name || "") ||
+    (!!value?.cause && value.cause !== error && isRetryableProviderError(value.cause));
 }
 export function proposedFactsFor(
   value: DeskCase,

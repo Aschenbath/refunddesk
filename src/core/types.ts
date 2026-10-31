@@ -121,6 +121,17 @@ export type CaseStatus =
   | "refunded"
   | "rejected"
   | "failed";
+export interface TriageTrace {
+  provider: string;
+  model: string;
+  source: "live" | "fixture" | "offline" | "unavailable" | "manual";
+  latencyMs: number;
+  attempts: number;
+  toolCalls: { name: string; arguments: Record<string, unknown>; summary: string; attempt: number }[];
+  evidenceSpans: string[];
+  proposal: Proposal;
+  calculatorAllowanceCents?: number;
+}
 export interface DeskCase {
   id: string;
   revision: number;
@@ -141,6 +152,8 @@ export interface DeskCase {
   manualOrder: boolean;
   duplicateOverride: string | null;
   error: string | null;
+  triageTrace?: TriageTrace;
+  proposedCheck?: Check;
   approvalCheck?: Check;
   check?: Check;
   order?: Order | null;

@@ -1,98 +1,222 @@
 # RefundDesk
 
-RefundDesk is a refund desk for a small shop, demonstrated with fictional Fernleaf Ceramics customers and real PayPal sandbox payments. It turns customer complaints into policy-backed proposals, waits for the owner to approve, issues the refund, and checks the local ledger against PayPal. This reduces the work and mistakes involved in matching orders, calculating refunds and checking earlier payments.
+Turn refund complaints into policy-checked proposals, owner decisions, and an exactly reconciled PayPal ledger.
 
-The starting folder contained the specification and installed dependencies. The implementation adds a pure policy core, SQLite storage, a PayPal REST client, offline and online AI triage, a Hono API, and a React / AG Grid owner workspace. No dependencies were added. Keeping calculation separate from triage makes incorrect model amounts visible and prevents them from deciding money movements.
+![RefundDesk: risky refunds, filtered totals and replay demo](public/refunddesk.png)
 
-```text
-Message form / JSON import
-          |
-          v
-AI triage <--- read-only order & policy lookups
-          |
-          v
-Zod schema --> pure policy calculator --> remainder / duplicate / match checks
-                                              |
-                                    owner reviews and approves
-                                              |
-                                  persisted amount + request key
-                                              |
-                                        PayPal refund
-                                              |
-                               capture + order + refund lookups
-                                              |
-                                     SQLite ledger / AG Grid
+## Try it in 60 seconds
+
+Use **Node 24** or later:
+
+```sh
+npm ci && npm run demo
 ```
 
-The AI suggests an order match, intent, clause ids, item reasons and amounts, and a reply draft. Code verifies the match against lookup candidates, recomputes the policy allowance from merchant facts, checks currency and previous item allocations, blocks duplicates, persists the approved request, executes it, and reconciles it. The AI has no refund tool or endpoint access. The owner can select an order, verify damage evidence, mark returned items received, choose clauses, lower the approved amount, and record a reasoned duplicate override. Overrides never bypass the refundable balance, policy allowance, currency check or unresolved request lock.
+Open **http://localhost:15481**. No PayPal keys, AI keys, `.env`, seed command or password needed on loopback.
+Choose **Risky**, open a case, expand **How the AI got here**, review the facts, then export the current view.
+The persistent **Replay demo — no money moves, no keys needed** badge identifies this mode.
+Payment records retain real sandbox IDs; new refunds are deterministic simulations.
+Demo payment state resets on restart; column layouts and saved-view filters persist in your browser.
 
-All money in the domain and API is **integer cents**. UI amounts are dollars. PayPal amounts are two-decimal strings. An approved amount may be lower than the computed allowance; a higher amount is rejected. The drawer displays the model amount, confirmed policy allowance and refundable balance separately. A case with an ineligible clause combination fails closed. Damage and returns use owner-confirmed quantities within each order line.
+Demo video: <!-- VIDEO_URL -->
 
-## Owner trust boundary and recovery
+Hosted demo: <!-- DEMO_URL -->
 
-Previously the local API was unauthenticated, triage could promote item suggestions into trusted facts, and approval could execute an edit made during its PayPal lookup. Every customer-data read and mutation now requires an owner session. Sign-in uses `OWNER_PASSWORD`; an eight-hour HttpOnly, SameSite=Strict cookie is signed with `SESSION_SECRET`. If that secret is unset, startup generates one and a restart invalidates existing sessions. Passwordless access works only from a loopback socket outside production. Production startup requires a password and `PUBLIC_ORIGIN`; HTTPS origins work through an HTTP reverse proxy. Configure a stable secret to preserve sessions across restarts. Limits use the socket IP, not client-supplied forwarded headers; a shared proxy can therefore share a rate bucket.
+## What it does
 
-Each case has a revision. Approve sends `{ revision, approvedCents }` from the drawer; an intervening change returns 409, displays “This case changed; review again”, and reloads. The transaction after reconciliation checks that revision again and freezes the amount, allocations, clauses, confirmed facts, order and revision. Facts are split into `proposedFacts` and `confirmedFacts`. Seeded, fixture and newly triaged cases have no confirmations. The owner checks each affected line, its quantity, damage evidence, return receipt and delivery dates before money is allowed. A changed order clears confirmations. P3 deducts $6 from this case’s confirmed returned items and records the case that incurred the fee; later return parcels incur their own fee.
+- Matches customer messages to the order book with read-only AI tools and verbatim evidence.
+- Separates model-proposed facts from owner-confirmed damage, quantities, return receipts and delivery dates.
+- Computes allowed amounts in integer cents from merchant policies and the remaining capture balance.
+- Lets an owner find risky cases, correct them, approve the reviewed revision, and export the filtered AG Grid view.
+- Records PayPal refund lifecycle, recovers uncertain outcomes, and reconciles exact receipts, amounts and currencies.
 
-Conflicting explicit references, customer identity disagreements and unresolved order matches require an owner to choose an order. A single explicit reference resolves several orders for the same customer when the name and email agree. The model’s order lookup is limited to records matching that case’s references, email or name. Online provider failures retain a keyword proposal and reply marked “AI unavailable”; provider errors are stored and logged as class/status only. Sign-in, import and triage have per-IP rate limits, triage concurrency is two, and request limits count streamed bytes rather than trusting Content-Length.
+## Architecture
 
-Refund attempts have `submitted`, `pending`, `completed`, `failed` and transport-uncertain states. Only a completed PayPal receipt closes a case as refunded; pending money is displayed separately and reserves the balance. Reconciliation changes the receipt, attempt, case and ledger in one transaction. “Check PayPal” enumerates refunds for the verified capture and finds the attempt’s `invoice_id`/`custom_id`, then validates the frozen amount and currency before importing its allocations. It sends no refund. If the receipt is absent after the conservative one-hour request-id window, an owner can explicitly confirm a warning and provide a reason to retry with a new request id. No automatic new-id retry exists; uncertainty and reporting lag can still require PayPal investigation.
+```mermaid
+flowchart LR
+  Inbox[Inbox / JSON import] --> AI[AI triage with read-only tools]
+  AI --> Guard[Calculator and guardrails]
+  Guard --> Owner[Owner approval in AG Grid]
+  Owner --> PayPal[PayPal Orders / Refunds]
+  PayPal --> Reconcile[Reconciliation and webhook]
+  Reconcile --> Guard
+  SQLite[(SQLite)] --- AI
+  SQLite --- Guard
+  SQLite --- Reconcile
+```
 
-Seed batches and operation intents persist before network requests. Resuming uses the same batch, dates and request ids. Known PayPal orders are read before capturing, uncertain captures are looked up by invoice through PayPal transaction reporting, and refunds are searched by invoice before resubmission. Reporting requires PayPal reporting access and may lag; missing access or a missing result beyond the request-id window fails closed. `--reset` starts a new batch and leaves old sandbox transactions intact.
+React + AG Grid Community run on Vite. Hono serves the API and production UI.
+SQLite stores cases, triage traces, orders, refund attempts and ledger rows.
+The AI SDK calls an OpenAI-compatible provider with a strict proposal schema.
+Replay uses the same service, calculator and approval checks with a network-free payment adapter.
 
-## Run
+## PayPal APIs used
 
-Use Node 24.18 or newer. Dependencies are already installed in this workspace; a new checkout needs `npm ci`.
+All normal-mode requests use `https://api-m.sandbox.paypal.com`:
 
-1. Copy `.env.example` to `.env` only if you do not already have `.env`. Fill the two sandbox credentials. Set `PAYPAL_ENV=sandbox`, `AI_MODE=offline`, and optionally `PORT=15480`. The application reads this file with `process.loadEnvFile`; credentials stay on the server.
-   Set `OWNER_PASSWORD` in your shell for local runs (`$env:OWNER_PASSWORD = 'your-local-password'` in PowerShell). Set `SESSION_SECRET` and `PUBLIC_ORIGIN` through environment configuration for a deployed service; use its exact HTTPS origin without a path or trailing slash.
-2. `npm run seed -- --reset` creates 12 products, 15 customers, 25 captured sandbox orders and 15 messy customer messages. It back-dates local delivery records, issues a real $12 partial refund, triages the messages, and reconciles the ledger. `--reset` removes local data only; old sandbox transactions remain. Stop the server before reset. Without `--reset`, existing local captures and cases are preserved, and incomplete seeding resumes.
-3. `npm run dev` starts the API on **15480** and Vite on **15481**. Open `http://localhost:15481`. The server is imported in the same process; restart dev after server source changes, or use `npm run dev:server` for a separately watched API.
-4. For production, `npm run build` then `npm start`. Open `http://localhost:15480`; Hono serves the built client and API.
+| Method | Exact endpoint | Purpose |
+|---|---|---|
+| POST | `/v1/oauth2/token` | OAuth client credentials |
+| POST | `/v2/checkout/orders` | Create sandbox seed orders |
+| POST | `/v2/checkout/orders/{id}/capture` | Complete seed captures when needed |
+| GET | `/v2/checkout/orders/{id}` | Capture association and refund list |
+| GET | `/v2/payments/captures/{id}` | Authoritative capture status and amount |
+| POST | `/v2/payments/captures/{id}/refund` | Submit the frozen owner-approved amount |
+| GET | `/v2/payments/refunds/{id}` | Exact refund receipt and lifecycle |
+| GET | `/v1/reporting/transactions` | Recover uncertain seed captures by invoice; paginated |
+| POST | `/v1/notifications/verify-webhook-signature` | Verify inbound PayPal webhook signatures |
 
-On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`. The scripts use Node 24's native TypeScript stripping and a small source-resolution hook: the installed `tsx` CLI fails here because `os.userInfo()` is unavailable in the managed Windows session. Production runs emitted JavaScript without the hook.
+Mutating payment requests use persisted `PayPal-Request-Id` values.
+The local webhook receiver is `POST /api/webhooks/paypal`; it is not a PayPal API endpoint.
 
-The Queue supports selection, sorting, quick search, inline amount editing, status filters and collapsible status groups. Double-click an amount to edit it; the server validates the edit. AG Grid Community does not include enterprise row grouping, so the status groups are implemented with Community full-width rows. Select a case to inspect the message, highlighted match evidence, clauses, order lines, refund balance and editable reply. Confirm facts, save any amount edit, review the updated amount and click Approve. The drawer shows the PayPal refund id; completed Ledger rows turn green when every receipt matches PayPal. Pending refunds stay visible, and unexpected remote refunds use violet. Copy the reply or mark it sent; no real email is sent.
+## AI evaluation
 
-Inbox accepts a message form or a JSON array with `sender`, `email`, `subject` and `message`. Offline fixtures cover partial ids, repeated complaints, Spanish, an angry over-refund request, missing/ambiguous orders, received and unreceived returns, sale exclusions, expired returns, exchanges and questions. The angry case intentionally proposes $140 on a $72 capture; deterministic code adjusts it to $72. New messages use a modest keyword fallback and require human order selection when matching is uncertain.
+[Full results, category table and failures](eval/RESULTS.md) · [Offline machine-readable observations](eval/results-offline.json)
 
-For online AI, set `AI_MODE=online`, `AI_BASE_URL` to your OpenAI-compatible chat API base (usually ending `/v1`), `AI_API_KEY` and `AI_MODEL`. AI SDK structured output is validated by strict Zod; the provider is created with `supportsStructuredOutputs: true` so the JSON schema reaches the model. There is one retry for invalid output or a failed provider call, then deterministic keyword triage supplies a proposal and reply marked “AI unavailable”. The only tools are case-scoped local order lookups and policy reads. Model facts remain proposals regardless of provider or confidence.
+The unchanged 30 held-out cases were independently written by Claude Code.
+Each runs through the real triage path in an isolated in-memory copy of the shared 25-order seed book,
+including FC-1004’s prior $12 refund, with fixed dates and no payment calls. The prompt was not tuned.
 
-`@paypal/agent-toolkit` 1.11's AI SDK tools use `parameters` rather than AI v7's required `inputSchema`; the compatibility check fails, so RefundDesk uses direct PayPal REST for reads and refunds. Run `npm run check:toolkit` to reproduce the tool-shape check without credentials or network calls.
+| Offline keyword baseline | Result |
+|---|---:|
+| Order matching | 30/30 (100%) |
+| Needs-human agreement | 15/26 (58%) |
+| Intent agreement | 17/27 (63%) |
+| Clause precision / recall | 6/9 (67%) / 6/26 (23%) |
+| Damaged-unit exact match | 18/30 (60%) |
+| All applicable checks pass | 7/30 |
+| Model over-ask / unsafe allowance / unsafe execution | 10 / 0 / 0 |
 
-## Test
+These numbers establish a baseline, **not proof of live-model quality**. No AI key was available for the online run.
+`any` labels are excluded from agreement denominators. Needs-human measures escalation using proposed facts;
+real approval separately requires confirmed facts. Every recorded model output is tested against the approval bound.
+The report distinguishes model over-ask, unsafe proposed-fact allowance and unsafe execution.
+
+```sh
+npm run eval -- --mode offline
+npm run eval -- --mode online
+```
+
+For online evaluation set `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL`.
+Gemini works via `https://generativelanguage.googleapis.com/v1beta/openai` with `gemini-3.5-flash`.
+Calls are sequential, 300 ms apart; rate limits/timeouts get one retry with backoff.
+Provider errors remain errors and cannot count as passes. Results contain no credentials.
+`--use-env-proxy` / `NODE_USE_ENV_PROXY=1` honors `HTTPS_PROXY` and `NO_PROXY`.
+
+## AG Grid features used
+
+**Community only**: client-side row model, stable row IDs, keyboard navigation, sorting and column resizing/reordering.
+Both grids have native floating text/number filters; status and policy use a custom checkbox filter and floating selector.
+Use **Columns** to show Subject, Intent or Received and filter them directly.
+Confidence filters use decimals, for example `0.6` for 60%.
+
+Saved views are **Needs attention**, **Risky**, **Ready to approve**, **Refunded** and **All**.
+Each stores a filter model, sort and column state. Native filters remain editable within each view.
+Layouts use the grid state API and guarded `localStorage`; **Reset layout** restores defaults.
+Pinned bottom rows sum only currently filtered rows, and update after filters and server-validated edits.
+CSV export uses `exportDataAsCsv`, dollar amounts, readable headers, filtered/sorted rows, and formula-safe customer text.
+Queue Approved values are the current approval amount; completed case receipts are shown separately in Refunded.
+
+The grid loads lazily. A build adapter separates AG Grid’s flattened ESM into dependency groups without rewriting
+its statements; cycle groups and initializers stay together. The installed package shape and output size are tested.
+Production browser checks cover the resulting chunks. No JS chunk exceeds 500 kB.
+
+## Safety model
+
+The AI can look up candidate orders, read merchant policies, propose facts/amounts, and draft a reply.
+It cannot approve, call PayPal, confirm facts, or override duplicate and identity checks.
+Its provider/model, latency, attempt count, tool arguments/results and cited spans are persisted with the proposal.
+The drawer compares the original model amount with the calculator on proposed facts and highlights cited evidence.
+Offline cases say **Demo fixture, not a live model call**; unavailable providers are identified as keyword fallback.
+
+Owners can review manually even before triage: choose an order from the case’s candidates, intent and individual clauses,
+then confirm facts through the same calculator. An already assigned order remains available for human identity review.
+Confirmed units must belong to that order and cannot exceed purchased quantities.
+Approval binds to the current revision and displayed amount, reconciles first, then freezes facts, allocations and request ID.
+The server rejects amounts above policy allowance or remaining capture balance, including after a concurrent edit.
+Pending/uncertain attempts reserve balance. Exact receipt reconciliation blocks unknown or unallocated refunds.
+Uncertain outcomes use **Check PayPal**; explicit new-ID retry requires investigation and acknowledgement.
+Cookie authentication, origin checks, request-size limits and rate limits protect the owner API.
+Replies are drafts for copying or marking sent; the app does not send email automatically.
+
+## Implemented vs. limitations
+
+- [x] Real sandbox captures, owner approvals, refunds, request-id deduplication and exact reconciliation.
+- [x] Lost-response recovery exercised against the live sandbox; unauthorized/stale/second approvals rejected.
+- [x] Zero-key replay snapshot with recorded sandbox receipts and deterministic simulated refunds.
+- [x] Per-triage trace, manual fallback, explicit fact confirmation and held-out offline evaluation.
+- [x] Community filters, saved views, pinned totals, CSV export and persisted layouts.
+- [ ] Online held-out evaluation remains to be run with an AI key; keyword inference is weak across languages/items.
+- [ ] Webhook verification and event processing are tested with mocks; no deployed live webhook verification claimed.
+- [ ] Sandbox only; no production-money integration or delivery-carrier/return-warehouse verification.
+- [ ] Human fact confirmation remains necessary; zero unsafe execution does not prove model facts are true.
+- [ ] Inbox transport, automatic reply sending and multi-owner roles are not implemented.
+- [ ] `@paypal/agent-toolkit` is installed but not used: its refund schema differs from the app’s capture-based,
+  integer-cent, idempotent approval contract. `npm run check:toolkit` documents the mismatch.
+
+## Run with real sandbox keys
+
+Use [.env.example](.env.example) as a template; never share `.env`.
+Set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_ENV=sandbox`.
+Set a strong `OWNER_PASSWORD`; production also requires `PUBLIC_ORIGIN` and a stable `SESSION_SECRET`.
+`AI_MODE=online` plus `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` enables live triage; offline remains available.
+
+```sh
+npm ci
+npm run seed
+npm run dev
+```
+
+Seed requests are resumable; rerun without `--reset` after interruption.
+`npm run demo` always uses replay, skips `.env`, and does not change the live database.
+For production run `npm run build && npm start` (one HTTP service).
+
+### Render
+
+[render.yaml](render.yaml) deploys Node 24 with a persistent `/var/data` disk.
+Required real-mode variables: `OWNER_PASSWORD`, `SESSION_SECRET`, `PUBLIC_ORIGIN`,
+`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox`, and `DB_PATH`.
+Set `PAYPAL_WEBHOOK_ID` for verified webhooks. Optional live-AI variables: `AI_MODE=online`,
+`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`; set `NODE_USE_ENV_PROXY=1` if a proxy is required.
+
+For a hosted zero-key demo set `DEMO_MODE=replay`; PayPal/AI keys and live seed are unnecessary.
+Production still requires owner authentication and the public origin; the password relaxation applies only to
+loopback in development. Replay state is in memory and resets on restart.
+
+### Regenerate the replay snapshot
+
+```sh
+npm run seed
+npm run demo:snapshot
+```
+
+The generator reads the live seed database, fetches the 25 orders/captures and their refund receipts,
+and writes [demo/snapshot.json](demo/snapshot.json) using explicit field allowlists.
+It keeps real sandbox IDs and amounts but excludes OAuth tokens, headers, credentials, payer/card data and addresses.
+Names/emails/messages, fixed dates and review confirmations are synthetic demo fixtures; new replay refunds are simulated.
+Date offsets are rebased when loading the demo so return windows remain reproducible.
+The snapshot is outside `data/`, which is runtime state and unnecessary for a fresh demo.
+
+## Tests
 
 ```sh
 npm test
+npm run typecheck
 npm run build
-npm run seed -- --reset
+npm run eval -- --mode offline
 npm run test:live
-# With npm start running and the same OWNER_PASSWORD in this shell, confirm/approve/check two seeded cases:
-npm run verify:seeded
 ```
 
-Unit and fast-check tests cover order and line remainders, model-independent calculation, duplicate protection, currency and ambiguous matches, damage evidence, clause families, business-day thresholds, percentage rounding, return receipt and deductions. Fixture tests cover PayPal token caching, direct and separate capture, request headers, typed errors, and webhook verification. API tests cover concurrent approval claims, frozen retries, invalid-edit rollback, order selection and schema retry limits. Synthetic fixtures cover error and creation paths; an additional reduced fixture records real sandbox capture, order and refund GET responses, with credentials, tokens and personal fields excluded.
+CI runs the first four commands on Node 24 without secrets. The live check needs real sandbox credentials
+and `OWNER_PASSWORD`; it makes a $1 sandbox capture, a $0.40 refund and a $0.10 recovery refund.
+Unit/property tests cover policy arithmetic, auth, concurrency, fact confirmation, lifecycle, recovery,
+exact reconciliation, scoring and execution bounds for every recorded held-out output.
+Screenshots and local verification evidence are in `output/playwright/`.
+With a replay demo open in Playwright CLI, run `playwright-cli run-code --filename scripts/verify-ui.mjs`
+to check filters, persisted views, keyboard review, CSV values and both screenshot sizes.
 
-The opt-in live test signs in, creates a $1 capture, approves a $0.40 refund, checks 401 without a session and 409 for stale/second approval, and repeats the exact PayPal request key to prove idempotency. A separate ten-cent refund has its response deliberately lost after real creation; owner-controlled recovery finds that same receipt without a second call. Total refunded is $0.50. Each run leaves one labelled order in the ledger. Seeded verification explicitly confirms facts for cases 01–02, checks stale approval, approves them, proves the duplicate case is blocked and reconciles every row. Re-running it verifies completed receipts instead of issuing new refunds.
+## How it was built
 
-## API and reconciliation
-
-`GET /api/cases`, `/api/cases/:id`, `/api/orders?q=...`, `/api/policies`, `/api/ledger`, `/api/health`.
-
-`POST /api/sign-in` accepts `{ password }`; `/api/sign-out` clears the session. `GET /api/session` reports authentication. `POST /api/cases` adds a message; `/api/inbox/import` adds an array atomically. `POST /api/triage` triages new messages; `/api/cases/:id/triage` triages one editable case. `PATCH /api/cases/:id` updates `approvedCents`, `orderId`, `clauseIds`, `confirmedFacts`, `duplicateOverride`, `replyDraft` or `replySent`. Confirmed facts contain `damagedItems` and `returnedItems` arrays of `{ item, quantity }`, `hasDamageEvidence`, `returnReceived`, and nullable `deliveryDates` (`promisedAt`, `deliveredAt`). `POST /api/cases/:id/approve` requires `{ revision, approvedCents }`; `/reject` rejects. `/check-paypal` checks or recovers an attempt, and `/retry-new-id` requires `{ revision, confirmed: true, reason }`. `POST /api/orders/:id/reconcile` and `/api/reconcile` check one or all orders. Health, policies, session and sign-in are public; webhook verification is independent of owner sessions.
-
-Every PayPal POST carries `Prefer: return=representation` and `PayPal-Request-Id`. Refund keys are hashes derived from case ids and their capture ids, so reset seeds cannot reuse a previous capture's key. Before execution, code reconciles the order and atomically claims its approval. The request amount and allocations are frozen in SQLite. Unknown outcomes keep the order locked and retry the same request for up to one hour; older uncertain requests require manual PayPal review. Process startup marks interrupted attempts recoverable. A recorded refund blocks a second approval. Other cases with an unresolved request on the same order cannot approve, even with a duplicate override. The approval check is preserved with the case so the completed row retains the approved amount and policy result.
-
-Reconciliation verifies capture membership through order payments or capture related-order metadata, enumerates that capture’s refund ids, and fetches each refund independently. It compares each local/remote refund one to one by id, amount, currency, valid status transition and capture association; matching totals alone cannot pass. Net subtracts completed refunds, while `pendingCents` reserves pending money separately. Unrecognised remote refunds or failed reads flag a mismatch and block further approval for investigation.
-
-`POST /api/webhooks/paypal` verifies the untouched parsed event through PayPal’s signature endpoint before Zod extraction and hashes the raw request string for its verification request key. Verified `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.REFUND.PENDING` and `PAYMENT.REFUND.FAILED` events reconcile the associated order and deduplicate event ids. Without `PAYPAL_WEBHOOK_ID`, development acknowledges events as unverified and never acts on them; production returns 503. On-demand reconciliation is the local polling fallback.
-
-## Sandbox and deployment limits
-
-Only the sandbox host is supported; `PAYPAL_ENV=live` is rejected. Seeding uses the app's verified direct sandbox test-card capture path. Test card details are public test data. Capture, refund and debug ids are safe to show; client secrets, tokens and `.env` values are never logged. All people and products here are fictional.
-
-`render.yaml` defines a single Node web service with a persistent SQLite disk and server-side environment variables. Use a paid disk-capable plan, supply the sandbox credentials, owner password, public HTTPS origin and webhook id, and run `npm run seed` once from the service shell. Render generates the session secret. This demo authenticates one owner; it is not a multi-merchant system. No deployment was performed.
-
-Public holidays, taxes, discounts beyond sale eligibility, disputes, payouts, live payments, email integration and automatic refunding are outside this implementation. External refunds are detected but need manual ledger/allocation investigation; there is no automatic import of unidentified refunds. Fonts load from Google Fonts when available and have local fallbacks. The AG Grid bundle is substantial. Hosted webhook delivery, reporting permissions and a broader online AI evaluation require separately configured integration checks.
-
-Validation includes the original 32 tests plus focused review regressions for authentication, streaming/rate/concurrency limits, revision races, human-confirmed fact properties, reference conflicts, per-return fees, pending/failed transitions, response-loss recovery, exact reconciliation, untouched webhook verification, seed recovery and provider redaction/fallback. Live checks and screenshots are retained under ignored `output/`; the final verification report lists the sandbox ids and actual results.
+Codex wrote most code from specs and briefs. Claude Code wrote the specs, verified the integration against
+the live sandbox, and wrote the held-out eval cases. A separate Codex session independently reviewed the app.
+This repository records the implementation and its evidence; it does not claim the fixtures are live AI results.

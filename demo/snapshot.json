@@ -1,0 +1,3448 @@
+{
+  "version": 1,
+  "referenceDate": "2026-10-31",
+  "provenance": "Allowlisted GET responses from a real PayPal sandbox seed. Names, emails, messages, dates and reviewed facts are synthetic demo fixtures. OAuth, headers, payer/card fields, addresses, credentials and API keys are excluded. New replay refunds are simulations.",
+  "orders": [
+    {
+      "id": "FC-1001",
+      "customerId": "customer-1",
+      "customerName": "Maya Chen",
+      "email": "maya@example.test",
+      "paypalOrderId": "9KK372982U7437101",
+      "captureId": "3MD177246G107402B",
+      "currency": "USD",
+      "capturedCents": 5600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1001-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 2,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1002",
+      "customerId": "customer-2",
+      "customerName": "Theo Bennett",
+      "email": "theo@example.test",
+      "paypalOrderId": "1PL23542SU172114S",
+      "captureId": "6JD74902VX8443613",
+      "currency": "USD",
+      "capturedCents": 3600,
+      "shippingCents": 800,
+      "orderedAt": "2026-08-22",
+      "promisedAt": "2026-10-10",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1002-L1",
+          "productId": "p3",
+          "title": "Cloud Breakfast Bowl",
+          "quantity": 1,
+          "unitCents": 2800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1003",
+      "customerId": "customer-3",
+      "customerName": "Amara Okafor",
+      "email": "amara@example.test",
+      "paypalOrderId": "7424979457805924H",
+      "captureId": "61442744K8366345E",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1003-L1",
+          "productId": "p5",
+          "title": "Fern Windowsill Planter",
+          "quantity": 1,
+          "unitCents": 3800,
+          "sale": false,
+          "returnReceived": true
+        }
+      ]
+    },
+    {
+      "id": "FC-1004",
+      "customerId": "customer-4",
+      "customerName": "Luis Romero",
+      "email": "luis@example.test",
+      "paypalOrderId": "3MD35235LE8819802",
+      "captureId": "0B198032GW3890346",
+      "currency": "USD",
+      "capturedCents": 5600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1004-L1",
+          "productId": "p7",
+          "title": "Glade Pasta Bowl",
+          "quantity": 1,
+          "unitCents": 4800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1005",
+      "customerId": "customer-5",
+      "customerName": "Priya Shah",
+      "email": "priya@example.test",
+      "paypalOrderId": "3PB81698051262405",
+      "captureId": "64386815TD2849518",
+      "currency": "USD",
+      "capturedCents": 7200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1005-L1",
+          "productId": "p4",
+          "title": "Tide Side Plate",
+          "quantity": 2,
+          "unitCents": 3200,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1006",
+      "customerId": "customer-6",
+      "customerName": "Sofía García",
+      "email": "sofia@example.test",
+      "paypalOrderId": "3MM10187Y6161811W",
+      "captureId": "4M126812CC273351H",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1006-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 1,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1007",
+      "customerId": "customer-7",
+      "customerName": "Ben Walsh",
+      "email": "ben@example.test",
+      "paypalOrderId": "8N119436JY827250E",
+      "captureId": "4X461130FK025650J",
+      "currency": "USD",
+      "capturedCents": 7000,
+      "shippingCents": 800,
+      "orderedAt": "2026-08-22",
+      "promisedAt": "2026-09-13",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1007-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 1,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        },
+        {
+          "id": "FC-1007-L2",
+          "productId": "p5",
+          "title": "Fern Windowsill Planter",
+          "quantity": 1,
+          "unitCents": 3800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1008",
+      "customerId": "customer-8",
+      "customerName": "Iris Park",
+      "email": "iris@example.test",
+      "paypalOrderId": "1GN46782T4088504X",
+      "captureId": "2A883574JC352174A",
+      "currency": "USD",
+      "capturedCents": 6400,
+      "shippingCents": 800,
+      "orderedAt": "2026-09-01",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-09-16",
+      "lines": [
+        {
+          "id": "FC-1008-L1",
+          "productId": "p8",
+          "title": "Reed Utensil Pot",
+          "quantity": 1,
+          "unitCents": 5600,
+          "sale": false,
+          "returnReceived": true
+        }
+      ]
+    },
+    {
+      "id": "FC-1009",
+      "customerId": "customer-9",
+      "customerName": "Noah Wilson",
+      "email": "noah@example.test",
+      "paypalOrderId": "3WA760038D3243843",
+      "captureId": "1B965050XS291360J",
+      "currency": "USD",
+      "capturedCents": 7200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1009-L1",
+          "productId": "p9",
+          "title": "Stoneware Pitcher",
+          "quantity": 1,
+          "unitCents": 6400,
+          "sale": true,
+          "returnReceived": true
+        }
+      ]
+    },
+    {
+      "id": "FC-1010",
+      "customerId": "customer-10",
+      "customerName": "June Taylor",
+      "email": "june@example.test",
+      "paypalOrderId": "75V628849H255320X",
+      "captureId": "77G96729GR446914A",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1010-L1",
+          "productId": "p5",
+          "title": "Fern Windowsill Planter",
+          "quantity": 1,
+          "unitCents": 3800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1011",
+      "customerId": "customer-11",
+      "customerName": "Evan Brooks",
+      "email": "evan@example.test",
+      "paypalOrderId": "3E99370680978480M",
+      "captureId": "6FL40852EK960094L",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1011-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 1,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1012",
+      "customerId": "customer-12",
+      "customerName": "Nina Patel",
+      "email": "nina@example.test",
+      "paypalOrderId": "5HW168123A727741H",
+      "captureId": "6TX829636K272881X",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1012-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 1,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1013",
+      "customerId": "customer-13",
+      "customerName": "Ada Morgan",
+      "email": "ada@example.test",
+      "paypalOrderId": "9T894588C98560817",
+      "captureId": "6T962011K33893347",
+      "currency": "USD",
+      "capturedCents": 3600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1013-L1",
+          "productId": "p3",
+          "title": "Cloud Breakfast Bowl",
+          "quantity": 1,
+          "unitCents": 2800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1014",
+      "customerId": "customer-14",
+      "customerName": "Oliver Reed",
+      "email": "oliver@example.test",
+      "paypalOrderId": "63163113E87403501",
+      "captureId": "0BE39820XB721212V",
+      "currency": "USD",
+      "capturedCents": 4000,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1014-L1",
+          "productId": "p4",
+          "title": "Tide Side Plate",
+          "quantity": 1,
+          "unitCents": 3200,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1015",
+      "customerId": "customer-15",
+      "customerName": "Zoe Martin",
+      "email": "zoe@example.test",
+      "paypalOrderId": "7X855849SU6043827",
+      "captureId": "3MU11279GE848551T",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1015-L1",
+          "productId": "p5",
+          "title": "Fern Windowsill Planter",
+          "quantity": 1,
+          "unitCents": 3800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1016",
+      "customerId": "customer-1",
+      "customerName": "Maya Chen",
+      "email": "maya@example.test",
+      "paypalOrderId": "30E86277HC763273R",
+      "captureId": "2DF451644T0738825",
+      "currency": "USD",
+      "capturedCents": 5000,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1016-L1",
+          "productId": "p6",
+          "title": "Dune Serving Bowl",
+          "quantity": 1,
+          "unitCents": 4200,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1017",
+      "customerId": "customer-2",
+      "customerName": "Theo Bennett",
+      "email": "theo@example.test",
+      "paypalOrderId": "4H042272SL910491S",
+      "captureId": "5HL43935AF312680H",
+      "currency": "USD",
+      "capturedCents": 5600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1017-L1",
+          "productId": "p7",
+          "title": "Glade Pasta Bowl",
+          "quantity": 1,
+          "unitCents": 4800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1018",
+      "customerId": "customer-3",
+      "customerName": "Amara Okafor",
+      "email": "amara@example.test",
+      "paypalOrderId": "82320770456737804",
+      "captureId": "7MV827707N5981331",
+      "currency": "USD",
+      "capturedCents": 6400,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1018-L1",
+          "productId": "p8",
+          "title": "Reed Utensil Pot",
+          "quantity": 1,
+          "unitCents": 5600,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1019",
+      "customerId": "customer-4",
+      "customerName": "Luis Romero",
+      "email": "luis@example.test",
+      "paypalOrderId": "5NF981245H102421K",
+      "captureId": "8HP11665EL730405M",
+      "currency": "USD",
+      "capturedCents": 7200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1019-L1",
+          "productId": "p9",
+          "title": "Stoneware Pitcher",
+          "quantity": 1,
+          "unitCents": 6400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1020",
+      "customerId": "customer-5",
+      "customerName": "Priya Shah",
+      "email": "priya@example.test",
+      "paypalOrderId": "3EY02946K7241901S",
+      "captureId": "4S436456N3697080S",
+      "currency": "USD",
+      "capturedCents": 8600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1020-L1",
+          "productId": "p10",
+          "title": "Meadow Fruit Bowl",
+          "quantity": 1,
+          "unitCents": 7800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1021",
+      "customerId": "customer-11",
+      "customerName": "Evan Brooks",
+      "email": "evan@example.test",
+      "paypalOrderId": "9TA37766VS0478642",
+      "captureId": "1DN321714J621563W",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1021-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 1,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1022",
+      "customerId": "customer-7",
+      "customerName": "Ben Walsh",
+      "email": "ben@example.test",
+      "paypalOrderId": "7JC75025YL140080G",
+      "captureId": "1S1002272X698822S",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1022-L1",
+          "productId": "p2",
+          "title": "Moss Everyday Mug",
+          "quantity": 1,
+          "unitCents": 2400,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1023",
+      "customerId": "customer-8",
+      "customerName": "Iris Park",
+      "email": "iris@example.test",
+      "paypalOrderId": "9TG5819382351950N",
+      "captureId": "2Y0867990D4493623",
+      "currency": "USD",
+      "capturedCents": 3600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1023-L1",
+          "productId": "p3",
+          "title": "Cloud Breakfast Bowl",
+          "quantity": 1,
+          "unitCents": 2800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1024",
+      "customerId": "customer-9",
+      "customerName": "Noah Wilson",
+      "email": "noah@example.test",
+      "paypalOrderId": "58282146WA0563826",
+      "captureId": "2WC61004D3630673S",
+      "currency": "USD",
+      "capturedCents": 4000,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1024-L1",
+          "productId": "p4",
+          "title": "Tide Side Plate",
+          "quantity": 1,
+          "unitCents": 3200,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    },
+    {
+      "id": "FC-1025",
+      "customerId": "customer-10",
+      "customerName": "June Taylor",
+      "email": "june@example.test",
+      "paypalOrderId": "8PR62906SW088913W",
+      "captureId": "8UV03664BJ716610C",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "shippingCents": 800,
+      "orderedAt": "2026-10-06",
+      "promisedAt": "2026-10-14",
+      "deliveredAt": "2026-10-28",
+      "lines": [
+        {
+          "id": "FC-1025-L1",
+          "productId": "p5",
+          "title": "Fern Windowsill Planter",
+          "quantity": 1,
+          "unitCents": 3800,
+          "sale": false,
+          "returnReceived": false
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "sender": "Maya Chen",
+      "email": "maya@example.test",
+      "subject": "Both mugs arrived broken :(",
+      "message": "Hi, Maya here. Order FC-1001 arrived this morning. Both moss mugs have cracked handles and sharp pieces in the box. The packaging was crushed. Can you refund the whole order please?",
+      "id": "case-seed-01",
+      "revision": 5,
+      "createdAt": "2026-10-30T04:00:00.000Z",
+      "status": "refunded",
+      "orderId": "FC-1001",
+      "proposal": {
+        "matched_order_id": "FC-1001",
+        "match_evidence": [
+          "FC-1001"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1",
+          "P1.2"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1001-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 4800
+          },
+          {
+            "item": "shipping",
+            "reason": "Customer request under cited policy",
+            "amount": 800
+          }
+        ],
+        "proposed_total": 5600,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Maya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1001-L1",
+            "quantity": 2
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1001-L1",
+            "quantity": 2
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "approvedCents": 5600,
+      "replyDraft": "Hi Maya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "damage-all",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 1,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1001"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1001",
+          "match_evidence": [
+            "FC-1001"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1",
+            "P1.2"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1001-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 4800
+            },
+            {
+              "item": "shipping",
+              "reason": "Customer request under cited policy",
+              "amount": 800
+            }
+          ],
+          "proposed_total": 5600,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Maya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      },
+      "approvalCheck": {
+        "kind": "pass",
+        "computedCents": 5600,
+        "approvedCents": 5600,
+        "modelCents": 5600,
+        "remainderCents": 5600,
+        "reasons": [
+          "Recorded owner-approved sandbox refund"
+        ],
+        "lines": [
+          {
+            "item": "FC-1001-L1",
+            "cents": 4800
+          },
+          {
+            "item": "shipping",
+            "cents": 800
+          }
+        ]
+      }
+    },
+    {
+      "sender": "Theo Bennett",
+      "email": "theo@example.test",
+      "subject": "Delivery was weeks late",
+      "message": "Theo Bennett, order ending 1002. You promised delivery ages ago; it took another 12 business days! The bowl is lovely, but could you return my postage?",
+      "id": "case-seed-02",
+      "revision": 5,
+      "createdAt": "2026-10-30T05:00:00.000Z",
+      "status": "refunded",
+      "orderId": "FC-1002",
+      "proposal": {
+        "matched_order_id": "FC-1002",
+        "match_evidence": [
+          "Theo Bennett"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P2.1"
+        ],
+        "proposed_lines": [
+          {
+            "item": "shipping",
+            "reason": "Customer request under cited policy",
+            "amount": 800
+          }
+        ],
+        "proposed_total": 800,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Theo, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-10",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-10",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "approvedCents": 800,
+      "replyDraft": "Hi Theo, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "late-shipping",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "Theo Bennett"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1002",
+          "match_evidence": [
+            "Theo Bennett"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P2.1"
+          ],
+          "proposed_lines": [
+            {
+              "item": "shipping",
+              "reason": "Customer request under cited policy",
+              "amount": 800
+            }
+          ],
+          "proposed_total": 800,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Theo, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      },
+      "approvalCheck": {
+        "kind": "pass",
+        "computedCents": 800,
+        "approvedCents": 800,
+        "modelCents": 800,
+        "remainderCents": 3600,
+        "reasons": [
+          "Recorded owner-approved sandbox refund"
+        ],
+        "lines": [
+          {
+            "item": "shipping",
+            "cents": 800
+          }
+        ]
+      }
+    },
+    {
+      "sender": "Amara Okafor",
+      "email": "amara@example.test",
+      "subject": "Return delivered back to you",
+      "message": "Hello, this is Amara Okafor. FC-1003 was not quite the right colour. I sent the planter back and your shop confirmed receipt. Please refund it. Thanks!",
+      "id": "case-seed-03",
+      "revision": 5,
+      "createdAt": "2026-10-30T06:00:00.000Z",
+      "status": "ready",
+      "orderId": "FC-1003",
+      "proposal": {
+        "matched_order_id": "FC-1003",
+        "match_evidence": [
+          "FC-1003",
+          "Amara Okafor"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P3.1"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1003-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 3200
+          }
+        ],
+        "proposed_total": 3200,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Amara, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [
+          {
+            "item": "FC-1003-L1",
+            "quantity": 1
+          }
+        ],
+        "returnReceived": true,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [
+          {
+            "item": "FC-1003-L1",
+            "quantity": 1
+          }
+        ],
+        "returnReceived": true,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Amara, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "received-return",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1003",
+          "Amara Okafor"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1003",
+          "match_evidence": [
+            "FC-1003",
+            "Amara Okafor"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P3.1"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1003-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 3200
+            }
+          ],
+          "proposed_total": 3200,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Amara, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 3200
+      }
+    },
+    {
+      "sender": "Maya Chen",
+      "email": "maya@example.test",
+      "subject": "Following up on my broken mugs",
+      "message": "Maya again, FC-1001. Both handles are cracked. I sent an email earlier but just checking you got it. Please refund those mugs.",
+      "id": "case-seed-04",
+      "revision": 3,
+      "createdAt": "2026-10-30T07:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1001",
+      "proposal": {
+        "matched_order_id": "FC-1001",
+        "match_evidence": [
+          "FC-1001"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1001-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 4800
+          }
+        ],
+        "proposed_total": 4800,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Maya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1001-L1",
+            "quantity": 2
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Maya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "duplicate",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1001"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1001",
+          "match_evidence": [
+            "FC-1001"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1001-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 4800
+            }
+          ],
+          "proposed_total": 4800,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Maya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      }
+    },
+    {
+      "sender": "Luis Romero",
+      "email": "luis@example.test",
+      "subject": "Can I get that refund again?",
+      "message": "Luis Romero here, FC-1004. The bowl had a big crack down the middle. I already got a partial refund of $12, but can you send the refund again?",
+      "id": "case-seed-05",
+      "revision": 3,
+      "createdAt": "2026-10-30T08:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1004",
+      "proposal": {
+        "matched_order_id": "FC-1004",
+        "match_evidence": [
+          "FC-1004",
+          "Luis Romero"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1004-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 4800
+          }
+        ],
+        "proposed_total": 4800,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Luis, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1004-L1",
+            "quantity": 1
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Luis, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "already-refunded",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1004",
+          "Luis Romero"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1004",
+          "match_evidence": [
+            "FC-1004",
+            "Luis Romero"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1004-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 4800
+            }
+          ],
+          "proposed_total": 4800,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Luis, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 3600
+      }
+    },
+    {
+      "sender": "Priya Shah",
+      "email": "priya@example.test",
+      "subject": "I WANT $140 BACK",
+      "message": "FC-1005. Priya Shah. Both plates arrived shattered into tiny shards. This is ridiculous. I want $140 back including your delivery fee. Please sort this out today.",
+      "id": "case-seed-06",
+      "revision": 5,
+      "createdAt": "2026-10-30T09:00:00.000Z",
+      "status": "ready",
+      "orderId": "FC-1005",
+      "proposal": {
+        "matched_order_id": "FC-1005",
+        "match_evidence": [
+          "FC-1005",
+          "Priya Shah"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1",
+          "P1.2"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1005-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 13200
+          },
+          {
+            "item": "shipping",
+            "reason": "Customer request under cited policy",
+            "amount": 800
+          }
+        ],
+        "proposed_total": 14000,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Priya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1005-L1",
+            "quantity": 2
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1005-L1",
+            "quantity": 2
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Priya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "wrong-amount",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1005",
+          "Priya Shah"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1005",
+          "match_evidence": [
+            "FC-1005",
+            "Priya Shah"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1",
+            "P1.2"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1005-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 13200
+            },
+            {
+              "item": "shipping",
+              "reason": "Customer request under cited policy",
+              "amount": 800
+            }
+          ],
+          "proposed_total": 14000,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Priya, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 7200
+      }
+    },
+    {
+      "sender": "Sofía García",
+      "email": "sofia@example.test",
+      "subject": "Mi taza llegó rota",
+      "message": "Hola, soy Sofía García. Mi pedido FC-1006 llegó con el asa rota y una grieta grande. Quisiera un reembolso de la taza y del envío, por favor. Gracias.",
+      "id": "case-seed-07",
+      "revision": 5,
+      "createdAt": "2026-10-30T10:00:00.000Z",
+      "status": "ready",
+      "orderId": "FC-1006",
+      "proposal": {
+        "matched_order_id": "FC-1006",
+        "match_evidence": [
+          "FC-1006",
+          "Sofía García"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1",
+          "P1.2"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1006-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 2400
+          },
+          {
+            "item": "shipping",
+            "reason": "Customer request under cited policy",
+            "amount": 800
+          }
+        ],
+        "proposed_total": 3200,
+        "currency": "USD",
+        "customer_reply_draft": "Hola Sofía, sentimos que tu taza haya llegado rota. Podemos revisar un reembolso de la taza y del envío según nuestra política. Te confirmaremos el importe tras la aprobación.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1006-L1",
+            "quantity": 1
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1006-L1",
+            "quantity": 1
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "approvedCents": null,
+      "replyDraft": "Hola Sofía, sentimos que tu taza haya llegado rota. Podemos revisar un reembolso de la taza y del envío según nuestra política. Te confirmaremos el importe tras la aprobación.",
+      "replySent": false,
+      "fixture": "spanish",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1006",
+          "Sofía García"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1006",
+          "match_evidence": [
+            "FC-1006",
+            "Sofía García"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1",
+            "P1.2"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1006-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 2400
+            },
+            {
+              "item": "shipping",
+              "reason": "Customer request under cited policy",
+              "amount": 800
+            }
+          ],
+          "proposed_total": 3200,
+          "currency": "USD",
+          "customer_reply_draft": "Hola Sofía, sentimos que tu taza haya llegado rota. Podemos revisar un reembolso de la taza y del envío según nuestra política. Te confirmaremos el importe tras la aprobación.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 3200
+      }
+    },
+    {
+      "sender": "Ben Walsh",
+      "email": "ben@example.test",
+      "subject": "More than a month late",
+      "message": "Hi, Ben Walsh here. FC-1007 finally arrived, over 20 business days after your promised date. Both pieces are fine. I would like the shipping and the extra late-delivery refund in your policy.",
+      "id": "case-seed-08",
+      "revision": 5,
+      "createdAt": "2026-10-30T11:00:00.000Z",
+      "status": "ready",
+      "orderId": "FC-1007",
+      "proposal": {
+        "matched_order_id": "FC-1007",
+        "match_evidence": [
+          "FC-1007",
+          "Ben Walsh"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P2.1",
+          "P2.2"
+        ],
+        "proposed_lines": [
+          {
+            "item": "shipping",
+            "reason": "Customer request under cited policy",
+            "amount": 800
+          },
+          {
+            "item": "FC-1007-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 360
+          },
+          {
+            "item": "FC-1007-L2",
+            "reason": "Customer request under cited policy",
+            "amount": 570
+          }
+        ],
+        "proposed_total": 1730,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Ben, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-09-13",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-09-13",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Ben, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "very-late",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1007",
+          "Ben Walsh"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1007",
+          "match_evidence": [
+            "FC-1007",
+            "Ben Walsh"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P2.1",
+            "P2.2"
+          ],
+          "proposed_lines": [
+            {
+              "item": "shipping",
+              "reason": "Customer request under cited policy",
+              "amount": 800
+            },
+            {
+              "item": "FC-1007-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 360
+            },
+            {
+              "item": "FC-1007-L2",
+              "reason": "Customer request under cited policy",
+              "amount": 570
+            }
+          ],
+          "proposed_total": 1730,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Ben, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 1730
+      }
+    },
+    {
+      "sender": "Iris Park",
+      "email": "iris@example.test",
+      "subject": "Changed my mind after six weeks",
+      "message": "Iris Park — FC-1008. I bought this six weeks ago and have decided to redecorate. Can I return it for a refund?",
+      "id": "case-seed-09",
+      "revision": 3,
+      "createdAt": "2026-10-30T12:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1008",
+      "proposal": {
+        "matched_order_id": "FC-1008",
+        "match_evidence": [
+          "FC-1008",
+          "Iris Park"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P3.2"
+        ],
+        "proposed_lines": [],
+        "proposed_total": 0,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Iris, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-09-16"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Iris, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "old-return",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1008",
+          "Iris Park"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1008",
+          "match_evidence": [
+            "FC-1008",
+            "Iris Park"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P3.2"
+          ],
+          "proposed_lines": [],
+          "proposed_total": 0,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Iris, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      }
+    },
+    {
+      "sender": "Noah Wilson",
+      "email": "noah@example.test",
+      "subject": "Return the clearance vase",
+      "message": "Noah Wilson, FC-1009. I know it was on sale but I have changed my mind. I returned it yesterday. Please refund me.",
+      "id": "case-seed-10",
+      "revision": 3,
+      "createdAt": "2026-10-30T13:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1009",
+      "proposal": {
+        "matched_order_id": "FC-1009",
+        "match_evidence": [
+          "FC-1009",
+          "Noah Wilson"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P3.1",
+          "P3.3"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1009-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 2200
+          }
+        ],
+        "proposed_total": 2200,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Noah, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [
+          {
+            "item": "FC-1009-L1",
+            "quantity": 1
+          }
+        ],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Noah, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "sale-return",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1009",
+          "Noah Wilson"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1009",
+          "match_evidence": [
+            "FC-1009",
+            "Noah Wilson"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P3.1",
+            "P3.3"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1009-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 2200
+            }
+          ],
+          "proposed_total": 2200,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Noah, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      }
+    },
+    {
+      "sender": "June Taylor",
+      "email": "june@example.test",
+      "subject": "Refund before I post it?",
+      "message": "June Taylor here, FC-1010. Changed my mind about the planter. I have not sent it back yet. Could you refund it now?",
+      "id": "case-seed-11",
+      "revision": 3,
+      "createdAt": "2026-10-30T14:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1010",
+      "proposal": {
+        "matched_order_id": "FC-1010",
+        "match_evidence": [
+          "FC-1010",
+          "June Taylor"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P3.1"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1010-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 3200
+          }
+        ],
+        "proposed_total": 3200,
+        "currency": "USD",
+        "customer_reply_draft": "Hi June, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [
+          {
+            "item": "FC-1010-L1",
+            "quantity": 1
+          }
+        ],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi June, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+      "replySent": false,
+      "fixture": "return-pending",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1010",
+          "June Taylor"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1010",
+          "match_evidence": [
+            "FC-1010",
+            "June Taylor"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P3.1"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1010-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 3200
+            }
+          ],
+          "proposed_total": 3200,
+          "currency": "USD",
+          "customer_reply_draft": "Hi June, thank you for letting us know. We have reviewed your request against our policy. We will confirm the eligible amount once the shop owner has reviewed it.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      }
+    },
+    {
+      "sender": "Evan Brooks",
+      "email": "evan@example.test",
+      "subject": "One of my mugs broke",
+      "message": "Hey it is Evan Brooks. I placed two orders recently and cannot find the number. One mug has a cracked base. Can you help with a refund?",
+      "id": "case-seed-12",
+      "revision": 3,
+      "createdAt": "2026-10-30T15:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1011",
+      "proposal": {
+        "matched_order_id": "FC-1011",
+        "match_evidence": [
+          "Evan Brooks"
+        ],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1"
+        ],
+        "proposed_lines": [
+          {
+            "item": "FC-1011-L1",
+            "reason": "Customer request under cited policy",
+            "amount": 2400
+          }
+        ],
+        "proposed_total": 2400,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Evan, thank you for letting us know. We have reviewed your request against our policy. Two orders match Evan Brooks. Pick the affected order.",
+        "confidence": 0.45,
+        "needs_human_reason": "Two orders match Evan Brooks. Pick the affected order."
+      },
+      "proposedFacts": {
+        "damagedItems": [
+          {
+            "item": "FC-1011-L1",
+            "quantity": 1
+          }
+        ],
+        "hasDamageEvidence": true,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Evan, thank you for letting us know. We have reviewed your request against our policy. Two orders match Evan Brooks. Pick the affected order.",
+      "replySent": false,
+      "fixture": "ambiguous",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "Evan Brooks"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1011",
+          "match_evidence": [
+            "Evan Brooks"
+          ],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1"
+          ],
+          "proposed_lines": [
+            {
+              "item": "FC-1011-L1",
+              "reason": "Customer request under cited policy",
+              "amount": 2400
+            }
+          ],
+          "proposed_total": 2400,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Evan, thank you for letting us know. We have reviewed your request against our policy. Two orders match Evan Brooks. Pick the affected order.",
+          "confidence": 0.45,
+          "needs_human_reason": "Two orders match Evan Brooks. Pick the affected order."
+        },
+        "calculatorAllowanceCents": 2400
+      }
+    },
+    {
+      "sender": "Sam",
+      "email": "sam@unknown.example.test",
+      "subject": "Missing order number",
+      "message": "Bought a cup from you at some point. It was broken. I used a different email and cannot remember which. Can I get my money back? — Sam",
+      "id": "case-seed-13",
+      "revision": 3,
+      "createdAt": "2026-10-30T16:00:00.000Z",
+      "status": "needs_human",
+      "orderId": null,
+      "proposal": {
+        "matched_order_id": null,
+        "match_evidence": [],
+        "intent": "refund",
+        "policy_clause_ids": [
+          "P1.1"
+        ],
+        "proposed_lines": [],
+        "proposed_total": 0,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Sam, thank you for letting us know. We have reviewed your request against our policy. No order could be identified. Ask for an order number or email.",
+        "confidence": 0.2,
+        "needs_human_reason": "No order could be identified. Ask for an order number or email."
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Sam, thank you for letting us know. We have reviewed your request against our policy. No order could be identified. Ask for an order number or email.",
+      "replySent": false,
+      "fixture": "unknown",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [],
+        "proposal": {
+          "matched_order_id": null,
+          "match_evidence": [],
+          "intent": "refund",
+          "policy_clause_ids": [
+            "P1.1"
+          ],
+          "proposed_lines": [],
+          "proposed_total": 0,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Sam, thank you for letting us know. We have reviewed your request against our policy. No order could be identified. Ask for an order number or email.",
+          "confidence": 0.2,
+          "needs_human_reason": "No order could be identified. Ask for an order number or email."
+        },
+        "calculatorAllowanceCents": 0
+      }
+    },
+    {
+      "sender": "Ada Morgan",
+      "email": "ada@example.test",
+      "subject": "Is it dishwasher safe?",
+      "message": "Ada Morgan, FC-1013. I love the new cup. Is the glaze dishwasher safe? Not asking for a refund, just checking.",
+      "id": "case-seed-14",
+      "revision": 3,
+      "createdAt": "2026-10-30T17:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1013",
+      "proposal": {
+        "matched_order_id": "FC-1013",
+        "match_evidence": [
+          "FC-1013",
+          "Ada Morgan"
+        ],
+        "intent": "question",
+        "policy_clause_ids": [],
+        "proposed_lines": [],
+        "proposed_total": 0,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Ada, thank you for checking. We recommend hand washing handmade ceramics to protect the glaze.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Ada, thank you for checking. We recommend hand washing handmade ceramics to protect the glaze.",
+      "replySent": false,
+      "fixture": "question",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1013",
+          "Ada Morgan"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1013",
+          "match_evidence": [
+            "FC-1013",
+            "Ada Morgan"
+          ],
+          "intent": "question",
+          "policy_clause_ids": [],
+          "proposed_lines": [],
+          "proposed_total": 0,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Ada, thank you for checking. We recommend hand washing handmade ceramics to protect the glaze.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      }
+    },
+    {
+      "sender": "Oliver Reed",
+      "email": "oliver@example.test",
+      "subject": "Swap for a different colour?",
+      "message": "Oliver Reed here, FC-1014. Everything arrived safely. Would you exchange the mug for a blue one? I do not need a refund.",
+      "id": "case-seed-15",
+      "revision": 3,
+      "createdAt": "2026-10-30T18:00:00.000Z",
+      "status": "needs_human",
+      "orderId": "FC-1014",
+      "proposal": {
+        "matched_order_id": "FC-1014",
+        "match_evidence": [
+          "FC-1014",
+          "Oliver Reed"
+        ],
+        "intent": "exchange",
+        "policy_clause_ids": [],
+        "proposed_lines": [],
+        "proposed_total": 0,
+        "currency": "USD",
+        "customer_reply_draft": "Hi Oliver, we can help check availability for an exchange. We will confirm the colour with you.",
+        "confidence": 0.96,
+        "needs_human_reason": null
+      },
+      "proposedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": {
+          "promisedAt": "2026-10-14",
+          "deliveredAt": "2026-10-28"
+        }
+      },
+      "confirmedFacts": {
+        "damagedItems": [],
+        "hasDamageEvidence": false,
+        "returnedItems": [],
+        "returnReceived": false,
+        "deliveryDates": null
+      },
+      "approvedCents": null,
+      "replyDraft": "Hi Oliver, we can help check availability for an exchange. We will confirm the colour with you.",
+      "replySent": false,
+      "fixture": "exchange",
+      "manualOrder": false,
+      "duplicateOverride": null,
+      "error": null,
+      "triageTrace": {
+        "provider": "local",
+        "model": "recorded-demo-fixture",
+        "source": "fixture",
+        "latencyMs": 0,
+        "attempts": 0,
+        "toolCalls": [],
+        "evidenceSpans": [
+          "FC-1014",
+          "Oliver Reed"
+        ],
+        "proposal": {
+          "matched_order_id": "FC-1014",
+          "match_evidence": [
+            "FC-1014",
+            "Oliver Reed"
+          ],
+          "intent": "exchange",
+          "policy_clause_ids": [],
+          "proposed_lines": [],
+          "proposed_total": 0,
+          "currency": "USD",
+          "customer_reply_draft": "Hi Oliver, we can help check availability for an exchange. We will confirm the colour with you.",
+          "confidence": 0.96,
+          "needs_human_reason": null
+        },
+        "calculatorAllowanceCents": 0
+      }
+    }
+  ],
+  "refunds": [
+    {
+      "id": "0PS05704SP894524R",
+      "caseId": "case-seed-01",
+      "orderId": "FC-1001",
+      "amountCents": 5600,
+      "currency": "USD",
+      "status": "COMPLETED",
+      "requestId": "recorded-0PS05704SP894524R",
+      "allocations": [
+        {
+          "item": "FC-1001-L1",
+          "cents": 4800
+        },
+        {
+          "item": "shipping",
+          "cents": 800
+        }
+      ],
+      "createdAt": "2026-10-31T00:00:00Z"
+    },
+    {
+      "id": "7V0455594B720692E",
+      "caseId": "case-seed-02",
+      "orderId": "FC-1002",
+      "amountCents": 800,
+      "currency": "USD",
+      "status": "COMPLETED",
+      "requestId": "recorded-7V0455594B720692E",
+      "allocations": [
+        {
+          "item": "shipping",
+          "cents": 800
+        }
+      ],
+      "createdAt": "2026-10-31T00:00:00Z"
+    },
+    {
+      "id": "9K378143S4559941S",
+      "caseId": null,
+      "orderId": "FC-1004",
+      "amountCents": 1200,
+      "currency": "USD",
+      "status": "COMPLETED",
+      "requestId": "recorded-9K378143S4559941S",
+      "allocations": [
+        {
+          "item": "FC-1004-L1",
+          "cents": 1200
+        }
+      ],
+      "createdAt": "2026-10-31T00:00:00Z"
+    }
+  ],
+  "ledger": [
+    {
+      "orderId": "FC-1001",
+      "customer": "Maya Chen",
+      "captureId": "3MD177246G107402B",
+      "currency": "USD",
+      "capturedCents": 5600,
+      "refundedCents": 5600,
+      "pendingCents": 0,
+      "netCents": 0,
+      "paypalStatus": "REFUNDED",
+      "remoteCapturedCents": 5600,
+      "remoteRefundedCents": 5600,
+      "match": true,
+      "checkedAt": "2026-10-31T09:18:53.911Z",
+      "error": null,
+      "refundIds": [
+        "0PS05704SP894524R"
+      ],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1002",
+      "customer": "Theo Bennett",
+      "captureId": "6JD74902VX8443613",
+      "currency": "USD",
+      "capturedCents": 3600,
+      "refundedCents": 800,
+      "pendingCents": 0,
+      "netCents": 2800,
+      "paypalStatus": "PARTIALLY_REFUNDED",
+      "remoteCapturedCents": 3600,
+      "remoteRefundedCents": 800,
+      "match": true,
+      "checkedAt": "2026-10-31T09:18:58.479Z",
+      "error": null,
+      "refundIds": [
+        "7V0455594B720692E"
+      ],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1003",
+      "customer": "Amara Okafor",
+      "captureId": "61442744K8366345E",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 4600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 4600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:01.360Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1004",
+      "customer": "Luis Romero",
+      "captureId": "0B198032GW3890346",
+      "currency": "USD",
+      "capturedCents": 5600,
+      "refundedCents": 1200,
+      "pendingCents": 0,
+      "netCents": 4400,
+      "paypalStatus": "PARTIALLY_REFUNDED",
+      "remoteCapturedCents": 5600,
+      "remoteRefundedCents": 1200,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:04.817Z",
+      "error": null,
+      "refundIds": [
+        "9K378143S4559941S"
+      ],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1005",
+      "customer": "Priya Shah",
+      "captureId": "64386815TD2849518",
+      "currency": "USD",
+      "capturedCents": 7200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 7200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 7200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:07.445Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1006",
+      "customer": "Sofía García",
+      "captureId": "4M126812CC273351H",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:09.824Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1007",
+      "customer": "Ben Walsh",
+      "captureId": "4X461130FK025650J",
+      "currency": "USD",
+      "capturedCents": 7000,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 7000,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 7000,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:12.336Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1008",
+      "customer": "Iris Park",
+      "captureId": "2A883574JC352174A",
+      "currency": "USD",
+      "capturedCents": 6400,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 6400,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 6400,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:15.639Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1009",
+      "customer": "Noah Wilson",
+      "captureId": "1B965050XS291360J",
+      "currency": "USD",
+      "capturedCents": 7200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 7200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 7200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:17.939Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1010",
+      "customer": "June Taylor",
+      "captureId": "77G96729GR446914A",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 4600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 4600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:21.326Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1011",
+      "customer": "Evan Brooks",
+      "captureId": "6FL40852EK960094L",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:23.915Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1012",
+      "customer": "Nina Patel",
+      "captureId": "6TX829636K272881X",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:27.081Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1013",
+      "customer": "Ada Morgan",
+      "captureId": "6T962011K33893347",
+      "currency": "USD",
+      "capturedCents": 3600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:29.716Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1014",
+      "customer": "Oliver Reed",
+      "captureId": "0BE39820XB721212V",
+      "currency": "USD",
+      "capturedCents": 4000,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 4000,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 4000,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:32.265Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1015",
+      "customer": "Zoe Martin",
+      "captureId": "3MU11279GE848551T",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 4600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 4600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:34.856Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1016",
+      "customer": "Maya Chen",
+      "captureId": "2DF451644T0738825",
+      "currency": "USD",
+      "capturedCents": 5000,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 5000,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 5000,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:37.802Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1017",
+      "customer": "Theo Bennett",
+      "captureId": "5HL43935AF312680H",
+      "currency": "USD",
+      "capturedCents": 5600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 5600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 5600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:40.399Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1018",
+      "customer": "Amara Okafor",
+      "captureId": "7MV827707N5981331",
+      "currency": "USD",
+      "capturedCents": 6400,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 6400,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 6400,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:42.737Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1019",
+      "customer": "Luis Romero",
+      "captureId": "8HP11665EL730405M",
+      "currency": "USD",
+      "capturedCents": 7200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 7200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 7200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:45.380Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1020",
+      "customer": "Priya Shah",
+      "captureId": "4S436456N3697080S",
+      "currency": "USD",
+      "capturedCents": 8600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 8600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 8600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:47.601Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1021",
+      "customer": "Evan Brooks",
+      "captureId": "1DN321714J621563W",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:50.325Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1022",
+      "customer": "Ben Walsh",
+      "captureId": "1S1002272X698822S",
+      "currency": "USD",
+      "capturedCents": 3200,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3200,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3200,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:52.842Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1023",
+      "customer": "Iris Park",
+      "captureId": "2Y0867990D4493623",
+      "currency": "USD",
+      "capturedCents": 3600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 3600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 3600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:55.848Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1024",
+      "customer": "Noah Wilson",
+      "captureId": "2WC61004D3630673S",
+      "currency": "USD",
+      "capturedCents": 4000,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 4000,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 4000,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:19:58.624Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    },
+    {
+      "orderId": "FC-1025",
+      "customer": "June Taylor",
+      "captureId": "8UV03664BJ716610C",
+      "currency": "USD",
+      "capturedCents": 4600,
+      "refundedCents": 0,
+      "pendingCents": 0,
+      "netCents": 4600,
+      "paypalStatus": "COMPLETED",
+      "remoteCapturedCents": 4600,
+      "remoteRefundedCents": 0,
+      "match": true,
+      "checkedAt": "2026-10-31T09:20:01.724Z",
+      "error": null,
+      "refundIds": [],
+      "unexpectedRefundIds": []
+    }
+  ],
+  "recorded": {
+    "captures": [
+      {
+        "id": "3MD177246G107402B",
+        "status": "REFUNDED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "56.00"
+        }
+      },
+      {
+        "id": "6JD74902VX8443613",
+        "status": "PARTIALLY_REFUNDED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "36.00"
+        }
+      },
+      {
+        "id": "61442744K8366345E",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "46.00"
+        }
+      },
+      {
+        "id": "0B198032GW3890346",
+        "status": "PARTIALLY_REFUNDED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "56.00"
+        }
+      },
+      {
+        "id": "64386815TD2849518",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "72.00"
+        }
+      },
+      {
+        "id": "4M126812CC273351H",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "32.00"
+        }
+      },
+      {
+        "id": "4X461130FK025650J",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "70.00"
+        }
+      },
+      {
+        "id": "2A883574JC352174A",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "64.00"
+        }
+      },
+      {
+        "id": "1B965050XS291360J",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "72.00"
+        }
+      },
+      {
+        "id": "77G96729GR446914A",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "46.00"
+        }
+      },
+      {
+        "id": "6FL40852EK960094L",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "32.00"
+        }
+      },
+      {
+        "id": "6TX829636K272881X",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "32.00"
+        }
+      },
+      {
+        "id": "6T962011K33893347",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "36.00"
+        }
+      },
+      {
+        "id": "0BE39820XB721212V",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "40.00"
+        }
+      },
+      {
+        "id": "3MU11279GE848551T",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "46.00"
+        }
+      },
+      {
+        "id": "2DF451644T0738825",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "50.00"
+        }
+      },
+      {
+        "id": "5HL43935AF312680H",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "56.00"
+        }
+      },
+      {
+        "id": "7MV827707N5981331",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "64.00"
+        }
+      },
+      {
+        "id": "8HP11665EL730405M",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "72.00"
+        }
+      },
+      {
+        "id": "4S436456N3697080S",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "86.00"
+        }
+      },
+      {
+        "id": "1DN321714J621563W",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "32.00"
+        }
+      },
+      {
+        "id": "1S1002272X698822S",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "32.00"
+        }
+      },
+      {
+        "id": "2Y0867990D4493623",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "36.00"
+        }
+      },
+      {
+        "id": "2WC61004D3630673S",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "40.00"
+        }
+      },
+      {
+        "id": "8UV03664BJ716610C",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "46.00"
+        }
+      }
+    ],
+    "orders": [
+      {
+        "id": "9KK372982U7437101",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "3MD177246G107402B",
+                  "status": "REFUNDED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "56.00"
+                  }
+                }
+              ],
+              "refunds": [
+                {
+                  "id": "0PS05704SP894524R",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "56.00"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "1PL23542SU172114S",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "6JD74902VX8443613",
+                  "status": "PARTIALLY_REFUNDED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "36.00"
+                  }
+                }
+              ],
+              "refunds": [
+                {
+                  "id": "7V0455594B720692E",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "8.00"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "7424979457805924H",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "61442744K8366345E",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "46.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "3MD35235LE8819802",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "0B198032GW3890346",
+                  "status": "PARTIALLY_REFUNDED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "56.00"
+                  }
+                }
+              ],
+              "refunds": [
+                {
+                  "id": "9K378143S4559941S",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "12.00"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "3PB81698051262405",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "64386815TD2849518",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "72.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "3MM10187Y6161811W",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "4M126812CC273351H",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "32.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "8N119436JY827250E",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "4X461130FK025650J",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "70.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "1GN46782T4088504X",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "2A883574JC352174A",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "64.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "3WA760038D3243843",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "1B965050XS291360J",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "72.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "75V628849H255320X",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "77G96729GR446914A",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "46.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "3E99370680978480M",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "6FL40852EK960094L",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "32.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "5HW168123A727741H",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "6TX829636K272881X",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "32.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "9T894588C98560817",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "6T962011K33893347",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "36.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "63163113E87403501",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "0BE39820XB721212V",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "40.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "7X855849SU6043827",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "3MU11279GE848551T",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "46.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "30E86277HC763273R",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "2DF451644T0738825",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "50.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "4H042272SL910491S",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "5HL43935AF312680H",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "56.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "82320770456737804",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "7MV827707N5981331",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "64.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "5NF981245H102421K",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "8HP11665EL730405M",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "72.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "3EY02946K7241901S",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "4S436456N3697080S",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "86.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "9TA37766VS0478642",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "1DN321714J621563W",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "32.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "7JC75025YL140080G",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "1S1002272X698822S",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "32.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "9TG5819382351950N",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "2Y0867990D4493623",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "36.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "58282146WA0563826",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "2WC61004D3630673S",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "40.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "8PR62906SW088913W",
+        "status": "COMPLETED",
+        "purchase_units": [
+          {
+            "payments": {
+              "captures": [
+                {
+                  "id": "8UV03664BJ716610C",
+                  "status": "COMPLETED",
+                  "amount": {
+                    "currency_code": "USD",
+                    "value": "46.00"
+                  }
+                }
+              ],
+              "refunds": []
+            }
+          }
+        ]
+      }
+    ],
+    "refunds": [
+      {
+        "id": "0PS05704SP894524R",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "56.00"
+        }
+      },
+      {
+        "id": "7V0455594B720692E",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "8.00"
+        }
+      },
+      {
+        "id": "9K378143S4559941S",
+        "status": "COMPLETED",
+        "amount": {
+          "currency_code": "USD",
+          "value": "12.00"
+        }
+      }
+    ]
+  }
+}

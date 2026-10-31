@@ -3,9 +3,9 @@ import { Store } from "../src/server/db.js";
 import { PayPalClient } from "../src/server/paypal.js";
 import { DeskService } from "../src/server/service.js";
 import { seededMessages } from "../src/server/fixtures.js";
-import { policies } from "../src/core/policies.js";
+import { names, emailFor, seedCatalog, seedTemplates } from "../src/server/seed-book.js";
 import { reconcile } from "../src/server/reconcile.js";
-import type { DeskCase, Order, OrderLine } from "../src/core/types.js";
+import type { DeskCase } from "../src/core/types.js";
 import { emptyFacts } from "../src/core/types.js";
 import { seedCapture, seedRefund } from "../src/server/seed-operations.js";
 import { redactError } from "../src/server/errors.js";
@@ -26,119 +26,15 @@ const batch = store.transaction(() => {
   }
   return store.seedBatch();
 });
-const products = [
-  ["Pebble Espresso Cup", 1800],
-  ["Moss Everyday Mug", 2400],
-  ["Cloud Breakfast Bowl", 2800],
-  ["Tide Side Plate", 3200],
-  ["Fern Windowsill Planter", 3800],
-  ["Dune Serving Bowl", 4200],
-  ["Glade Pasta Bowl", 4800],
-  ["Reed Utensil Pot", 5600],
-  ["Stoneware Pitcher", 6400],
-  ["Meadow Fruit Bowl", 7800],
-  ["Tall Willow Vase", 9600],
-  ["Fernleaf Dinner Set", 13200],
-] as const;
-const names = [
-  "Maya Chen",
-  "Theo Bennett",
-  "Amara Okafor",
-  "Luis Romero",
-  "Priya Shah",
-  "Sofía García",
-  "Ben Walsh",
-  "Iris Park",
-  "Noah Wilson",
-  "June Taylor",
-  "Evan Brooks",
-  "Nina Patel",
-  "Ada Morgan",
-  "Oliver Reed",
-  "Zoe Martin",
-];
-const emailFor = (index: number) =>
-  `${names[index]
-    .split(" ")[0]
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()}@example.test`;
-const dateBefore = (days: number) =>
-  new Date(Date.parse(batch.date) - days * 86400000).toISOString().slice(0, 10);
 try {
-  products.forEach(([title, price], index) =>
-    store.db
-      .prepare("INSERT OR REPLACE INTO products(id,data) VALUES(?,?)")
-      .run(
-        `p${index + 1}`,
-        JSON.stringify({ id: `p${index + 1}`, title, unitCents: price }),
-      ),
-  );
-  names.forEach((name, index) =>
-    store.db
-      .prepare("INSERT OR REPLACE INTO customers(id,data) VALUES(?,?)")
-      .run(
-        `customer-${index + 1}`,
-        JSON.stringify({
-          id: `customer-${index + 1}`,
-          name,
-          email: emailFor(index),
-        }),
-      ),
-  );
-  policies.forEach((policy) =>
-    store.db
-      .prepare("INSERT OR REPLACE INTO policies(id,data) VALUES(?,?)")
-      .run(policy.id, JSON.stringify(policy)),
-  );
-  for (let index = 1; index <= 25; index++) {
-    const id = `FC-${1000 + index}`;
+  seedCatalog(store);
+  for (const template of seedTemplates(batch.date)) {
+    const id = template.id;
     if (store.getOrder(id)) {
       console.log(`${id}: existing capture preserved`);
       continue;
     }
-    const owner = index === 21 ? 10 : (index - 1) % 15;
-    let picks: [number, number][] = [[(index - 1) % 10, 1]];
-    if (index === 1) picks = [[1, 2]];
-    if (index === 2) picks = [[2, 1]];
-    if (index === 3 || index === 10) picks = [[4, 1]];
-    if (index === 4) picks = [[6, 1]];
-    if (index === 5) picks = [[3, 2]];
-    if ([6, 11, 21].includes(index)) picks = [[1, 1]];
-    if (index === 7)
-      picks = [
-        [1, 1],
-        [4, 1],
-      ];
-    const lines: OrderLine[] = picks.map(([product, quantity], line) => ({
-      id: `${id}-L${line + 1}`,
-      productId: `p${product + 1}`,
-      title: products[product][0],
-      quantity,
-      unitCents: products[product][1],
-      sale: index === 9,
-      returnReceived: [3, 8, 9].includes(index),
-    }));
-    const cents =
-      lines.reduce((sum, line) => sum + line.quantity * line.unitCents, 0) +
-      800;
-    const template: Order = {
-      id,
-      customerId: `customer-${owner + 1}`,
-      customerName: names[owner],
-      email: emailFor(owner),
-      paypalOrderId: "",
-      captureId: "",
-      currency: "USD",
-      capturedCents: cents,
-      shippingCents: 800,
-      orderedAt: dateBefore(
-        index === 8 ? 60 : [2, 7].includes(index) ? 70 : 25,
-      ),
-      promisedAt: dateBefore(index === 2 ? 21 : index === 7 ? 48 : 17),
-      deliveredAt: dateBefore(index === 8 ? 45 : 3),
-      lines,
-    };
+    const cents = template.capturedCents;
     const order = await seedCapture(store, paypal, batch.id, template);
     console.log(
       `${id}: order ${order.paypalOrderId}, capture ${order.captureId}, $${(cents / 100).toFixed(2)}`,

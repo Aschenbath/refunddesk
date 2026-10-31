@@ -12,7 +12,11 @@
     "verify:seeded": "node --import ./scripts/register.mjs scripts/verify-seeded.ts",
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json",
     "start": "node dist/server/src/server/index.js",
-    "check:toolkit": "node --import ./scripts/register.mjs scripts/check-toolkit.ts"
+    "check:toolkit": "node --import ./scripts/register.mjs scripts/check-toolkit.ts",
+    "eval": "node --use-env-proxy --import ./scripts/register.mjs scripts/eval.ts",
+    "typecheck": "tsc --noEmit",
+    "demo": "node --import ./scripts/register.mjs scripts/demo.ts",
+    "demo:snapshot": "node --use-env-proxy --import ./scripts/register.mjs scripts/snapshot.ts"
   },
   "type": "module",
   "engines": {
@@ -39,6 +43,7 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "rolldown": "1.2.16"
   }
 }

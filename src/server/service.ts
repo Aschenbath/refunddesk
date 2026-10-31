@@ -5,12 +5,16 @@ import {
   factsSchema,
   type DeskCase,
   type Facts,
+  type GuardContext,
+  type Proposal,
 } from "../core/types.js";
 import {
   candidatesFor,
   identityConflict,
   proposedFactsFor,
   triage,
+  fallback,
+  type TriageSettings,
 } from "./triage.js";
 import {
   ledgerRow,
@@ -36,9 +40,13 @@ export class DeskService {
   private triageActive = 0;
   readonly store: Store;
   readonly paypal: PayPalClient;
-  constructor(store: Store, paypal: PayPalClient) {
+  private triageSettings: TriageSettings;
+  private now: () => string;
+  constructor(store: Store, paypal: PayPalClient, triageSettings: TriageSettings = {}, now = () => new Date().toISOString()) {
     this.store = store;
     this.paypal = paypal;
+    this.triageSettings = triageSettings;
+    this.now = now;
   }
   requireCase(id: string): DeskCase {
     const value = this.store.getCase(id);
@@ -76,7 +84,7 @@ export class DeskService {
         : null,
     };
     if (!value.proposal) return base;
-    if (attempt && value.approvalCheck)
+    if ((attempt || value.status === "refunded") && value.approvalCheck)
       return { ...base, check: value.approvalCheck };
     const activeRefunds = refunds.filter((refund) =>
       ["COMPLETED", "PENDING"].includes(refund.status),
@@ -112,11 +120,11 @@ export class DeskService {
           refund.allocations.reduce((sum, line) => sum + line.cents, 0) !==
           refund.amountCents,
       ) || ledger?.match === false;
-    const check = guard({
+    const context: GuardContext = {
       order,
       proposal: value.proposal,
       facts: value.confirmedFacts,
-      now: new Date().toISOString(),
+      now: this.now(),
       refundedCents: Math.max(
         activeRefunds.reduce((sum, refund) => sum + refund.amountCents, 0),
         (ledger?.remoteRefundedCents || 0) + (ledger?.pendingCents || 0),
@@ -130,8 +138,10 @@ export class DeskService {
         ? {}
         : { approvedCents: value.approvedCents }),
       unallocatedRefund: unallocated,
-    });
-    return { ...base, check };
+    };
+    const check = guard(context);
+    const proposedCheck = guard({ ...context, facts: value.proposedFacts, approvedCents: undefined });
+    return { ...base, check, proposedCheck };
   }
   async triageCase(id: string): Promise<DeskCase> {
     if (this.triageActive >= 2)
@@ -149,11 +159,12 @@ export class DeskService {
       throw new DeskError("This case can no longer be triaged.");
     this.triageActive++;
     try {
-      const { proposal, unavailable } = await triage(this.store, value);
+      const { proposal, unavailable, trace } = await triage(this.store, value, this.triageSettings);
       const current = this.requireCase(id);
       if (current.revision !== value.revision || this.store.getAttempt(id))
         throw new DeskError("This case changed; review again");
       value.proposal = proposal;
+      value.triageTrace = trace;
       if (!value.manualOrder)
         value.orderId =
           proposal.matched_order_id &&
@@ -174,6 +185,7 @@ export class DeskService {
         ? "AI unavailable — keyword triage used. Review the proposed facts."
         : null;
       this.store.saveCase(value);
+      if (value.triageTrace) value.triageTrace.calculatorAllowanceCents = this.detail(id).proposedCheck?.computedCents ?? 0;
       value.status =
         this.detail(id).check?.kind === "blocked" ? "needs_human" : "ready";
       this.store.saveCase(value);
@@ -212,6 +224,7 @@ export class DeskService {
       orderId?: string;
       approvedCents?: number;
       clauseIds?: string[];
+      intent?: Proposal["intent"];
       confirmedFacts?: Facts;
       duplicateOverride?: string | null;
       replyDraft?: string;
@@ -232,9 +245,15 @@ export class DeskService {
       throw new DeskError(
         "The refund is locked; its order and amount cannot change.",
       );
+    if (!value.proposal && (changes.orderId || changes.clauseIds || changes.intent)) {
+      value.proposal = fallback(value, candidatesFor(this.store, value));
+      value.triageTrace = { provider: "owner", model: "manual-review", source: "manual", attempts: 0, latencyMs: 0, toolCalls: [], evidenceSpans: [], proposal: structuredClone(value.proposal) };
+    }
     if (changes.orderId) {
       const order = this.store.getOrder(changes.orderId);
       if (!order) throw new DeskError("Unknown order", 400);
+      if (value.orderId !== order.id && !candidatesFor(this.store, value).some((candidate) => candidate.id === order.id))
+        throw new DeskError("Order must be among this sender's candidate orders", 422);
       if (value.orderId !== changes.orderId)
         value.confirmedFacts = emptyFacts();
       value.orderId = changes.orderId;
@@ -253,6 +272,10 @@ export class DeskService {
       if (!value.proposal)
         throw new DeskError("Triage the case before choosing clauses", 400);
       value.proposal.policy_clause_ids = changes.clauseIds;
+      value.approvedCents = null;
+    }
+    if (changes.intent && value.proposal) {
+      value.proposal.intent = changes.intent;
       value.approvedCents = null;
     }
     if (changes.confirmedFacts) {
