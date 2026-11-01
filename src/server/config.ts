@@ -17,6 +17,9 @@ export const config = {
   aiBaseUrl: process.env.AI_BASE_URL || "",
   aiApiKey: process.env.AI_API_KEY || "",
   aiModel: process.env.AI_MODEL || "",
+  // "codex-cli" runs triage through the local `codex exec` instead of an HTTP endpoint.
+  aiProvider: process.env.AI_PROVIDER || "",
+  aiReasoningEffort: process.env.AI_REASONING_EFFORT || "",
 };
 export function validateOwnerConfiguration(value = config) {
   if (value.nodeEnv === "production" && !value.ownerPassword)

@@ -7,13 +7,15 @@ import { metrics, scoreCase, type EvalCase, type ScoredCase } from "./eval-scori
 
 const mode = process.argv[process.argv.indexOf("--mode") + 1];
 if (!["offline", "online"].includes(mode)) throw new Error("Usage: npm run eval -- --mode offline|online");
-if (mode === "online" && (!config.aiApiKey || !config.aiBaseUrl || !config.aiModel))
-  throw new Error("Online evaluation requires AI_BASE_URL, AI_API_KEY and AI_MODEL");
+const codexCli = config.aiProvider === "codex-cli";
+if (mode === "online" && (codexCli ? !config.aiModel : !config.aiApiKey || !config.aiBaseUrl || !config.aiModel))
+  throw new Error("Online evaluation requires AI_BASE_URL, AI_API_KEY and AI_MODEL (or AI_PROVIDER=codex-cli and AI_MODEL)");
 const model = mode === "online" ? config.aiModel : "keyword-baseline";
 const sha = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 16);
 // Anything that changes what the model sees or how its answer is checked; line endings are normalised across checkouts.
-const run = sha(JSON.stringify([mode, model, mode === "online" ? new URL(config.aiBaseUrl).origin + new URL(config.aiBaseUrl).pathname : "",
-  ...["src/server/triage.ts", "src/core/types.ts", "src/core/policies.ts", "src/core/calculator.ts", "src/core/guardrails.ts", "src/server/seed-book.ts", "scripts/eval-runner.ts"]
+const endpoint = mode !== "online" ? "" : codexCli ? `codex-cli/${config.aiReasoningEffort || "default"}` : new URL(config.aiBaseUrl).origin + new URL(config.aiBaseUrl).pathname;
+const run = sha(JSON.stringify([mode, model, endpoint,
+  ...["src/server/triage.ts", "src/core/types.ts", "src/core/policies.ts", "src/core/calculator.ts", "src/core/guardrails.ts", "src/server/seed-book.ts", "scripts/eval-runner.ts", ...(codexCli ? ["src/server/codex-cli.ts"] : [])]
     .map((path) => readFileSync(path, "utf8").replace(/\r\n/g, "\n"))]));
 const input = (value: EvalCase) => sha(JSON.stringify([value.sender, value.email, value.subject, value.message]));
 // --resume keeps answered cases from the same run, so a daily free-tier quota can span several runs. Labels are rescored.
@@ -26,7 +28,7 @@ if (process.argv.includes("--resume") && existsSync(`eval/results-${mode}.json`)
 const cases = loadCases();
 const results: (ScoredCase & { input: string })[] = [];
 const report = () => ({
-  mode, provider: mode === "online" ? "OpenAI-compatible" : "local keyword fallback", model, run, seedDate: EVAL_DATE,
+  mode, provider: mode !== "online" ? "local keyword fallback" : codexCli ? `OpenAI Codex CLI (codex exec, reasoning ${config.aiReasoningEffort || "default"})` : "OpenAI-compatible", model, run, seedDate: EVAL_DATE,
   complete: results.length === cases.length,
   overall: metrics(results), categories: Object.fromEntries([...new Set(results.map((row) => row.category))].map((category) => [category, metrics(results.filter((row) => row.category === category))])),
   cases: results,
@@ -64,7 +66,7 @@ for (const kind of ["offline", "online"]) {
   const path = `eval/results-${kind}.json`;
   if (!existsSync(path)) { text.push("## Online", "", "Not run yet. Run `npm run eval -- --mode online` with AI_BASE_URL, AI_API_KEY and AI_MODEL; add `--resume` to continue after a quota stop. Gemini endpoint: `https://generativelanguage.googleapis.com/v1beta/openai`, model `gemini-3.5-flash`. Node runs with environment proxy support (`NODE_USE_ENV_PROXY=1` / `--use-env-proxy`); calls are sequential, 300 ms apart, with one retry and backoff on rate limit or timeout.", ""); continue; }
   const r = JSON.parse(readFileSync(path, "utf8")) as ReturnType<typeof report>;
-  text.push(`## ${kind === "offline" ? "Offline baseline" : "Online"}`, "", `Model: ${r.model} (run ${r.run}). Answered ${r.overall.cases - r.overall.providerErrors - (r.overall.skipped ?? 0)}, provider errors ${r.overall.providerErrors}, not yet sent ${r.overall.skipped ?? 0}${r.complete === false ? " — run interrupted" : ""}.`, "", `**${r.overall.passed}/${r.overall.cases} cases pass; ${r.overall.modelOverAsk} model over-asks; ${r.overall.unsafeAllowance} unsafe allowances; ${r.overall.unsafeExecution} unsafe executions.** Unanswered cases count as failures.`, "",
+  text.push(`## ${kind === "offline" ? "Offline baseline" : "Online"}`, "", `Model: ${r.model} via ${r.provider} (run ${r.run}). Answered ${r.overall.cases - r.overall.providerErrors - (r.overall.skipped ?? 0)}, provider errors ${r.overall.providerErrors}, not yet sent ${r.overall.skipped ?? 0}${r.complete === false ? " — run interrupted" : ""}.`, "", `**${r.overall.passed}/${r.overall.cases} cases pass; ${r.overall.modelOverAsk} model over-asks; ${r.overall.unsafeAllowance} unsafe allowances; ${r.overall.unsafeExecution} unsafe executions.** Unanswered cases count as failures.`, "",
     "| Category | Cases | Order | Human | Intent | Clause precision | Clause recall | Damage exact | Over-ask | Unsafe allowance | Unsafe execution | Provider errors |",
     "|---|---:|---|---|---|---|---|---|---:|---:|---:|---:|");
   for (const [category, m] of Object.entries({ Overall: r.overall, ...r.categories }))

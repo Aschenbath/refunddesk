@@ -24,7 +24,7 @@ Hosted demo: <!-- DEMO_URL -->
 
 ## What it does
 
-- Matches customer messages to the order book with read-only AI tools and verbatim evidence.
+- Matches customer messages to the sender's candidate orders with verbatim evidence; the AI can only read, never pay.
 - Separates model-proposed facts from owner-confirmed damage, quantities, return receipts and delivery dates.
 - Computes allowed amounts in integer cents from merchant policies and the remaining capture balance.
 - Lets an owner find risky cases, correct them, approve the reviewed revision, and export the filtered AG Grid view.
@@ -77,23 +77,29 @@ The unchanged 30 held-out cases were independently written by Claude Code.
 Each runs through the real triage path in an isolated in-memory copy of the shared 25-order seed book,
 including FC-1004’s prior $12 refund, with fixed dates and no payment calls. The prompt was not tuned.
 
-**Offline keyword baseline: 7/30 cases pass under the original labels; 17/27 intent agreement.**
+**Live model (gpt-6.1-sol through the Codex CLI, reasoning medium): 21/30 cases pass under the original labels,
+27/27 intent agreement, 0 model over-asks, 0 unsafe allowances, 0 unsafe executions.** All 30 were answered; no provider errors.
 
-| Offline keyword baseline | Result |
-|---|---:|
-| Order matching (any accepted order, including "no match" where allowed) | 30/30 |
-| Needs-human agreement | 15/26 (58%) |
-| Intent agreement | 17/27 (63%) |
-| Clause precision / recall (labelled clauses only) | 6/9 / 6/26 |
-| Damaged-unit exact match | 5/11 cases with damage, 13/19 without (18/30) |
-| All applicable checks pass | 7/30 |
-| Model over-ask / unsafe allowance / unsafe execution | 10 / 0 / 0 |
+| Held-out result | Live model | Offline keyword baseline |
+|---|---:|---:|
+| Order matching (accepted order, including "no match" where allowed) | 26/30 | 30/30 |
+| Needs-human agreement | 22/26 (85%) | 15/26 (58%) |
+| Intent agreement | 27/27 (100%) | 17/27 (63%) |
+| Clause precision / recall (labelled clauses only) | 26/29 / 26/26 | 6/9 / 6/26 |
+| Damaged-unit exact match | 27/30 | 18/30 |
+| All applicable checks pass | **21/30** | 7/30 |
+| Model over-ask / unsafe allowance / unsafe execution | 0 / 0 / 0 | 10 / 0 / 0 |
 
-These numbers establish a baseline, **not proof of live-model quality**.
-The held-out online run is a quota-limited evaluation in progress on a free Gemini tier;
-[RESULTS.md](eval/RESULTS.md) shows answered, provider-error and not-yet-sent counts with the model and run ID once it starts.
-An earlier live spot check, run during development on 12 of the seeded demo messages rather than the held-out set,
-triaged 11 correctly; the twelfth hit a rate limit and went to a human. It is preliminary, not a held-out result.
+Four of the nine live failures are the label errata below (E03, E09, E22, E24): each message names an order that belongs to
+a different customer, and the model declined to match it and asked for a human, e.g. *"FC-1023 belongs to Iris Park, with
+a different email from sender Ben Walsh."* The other five: three cite clause P1.2 where the label forbids it and escalate
+to a human (E02, E07, E29), and two mark a damaged unit in an ambiguous message (E14, E16). Median latency was 42 s per case
+(the Codex CLI starts an agent each time); two cases (E05, E14) failed their first attempt and succeeded on the retry.
+
+The live run used the `codex-cli` provider: the same system prompt, input and strict proposal schema, sent through
+`codex exec --output-schema` read-only in an empty temporary folder. In that mode the model gets the candidate orders and
+policy clauses in its prompt and makes no tool calls; HTTP providers can additionally call the read-only lookup tools.
+An earlier free-tier Gemini attempt hit its daily quota and was abandoned.
 Four labels were later found to name a sender who does not own the order (E03, E09, E22, E24);
 they are listed as [errata](eval/RESULTS.md#safety-proof-and-label-notes) and left unchanged.
 `any` labels are excluded from agreement denominators. Needs-human measures escalation using proposed facts;
@@ -101,15 +107,17 @@ real approval separately requires confirmed facts. Precision ignores cited claus
 As engineering evidence rather than a model score, every recorded model output is also replayed through the real
 approval service: amounts above the calculator allowance are rejected before any payment call.
 The report distinguishes model over-ask, unsafe proposed-fact allowance and unsafe execution.
-`--resume` reuses an answer only when the model, prompt, schema, policies, seed book and message text all match.
+`--resume` reuses an answer only when the model, provider, prompt, schema, policies, seed book and message text all match.
 
 ```sh
 npm run eval -- --mode offline
 npm run eval -- --mode online
 ```
 
-For online evaluation set `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL`.
-Gemini works via `https://generativelanguage.googleapis.com/v1beta/openai` with `gemini-3.5-flash`.
+For online evaluation set `AI_BASE_URL`, `AI_API_KEY` and `AI_MODEL` (any OpenAI-compatible endpoint; Gemini works via
+`https://generativelanguage.googleapis.com/v1beta/openai`). If your model access is a Codex login, set
+`AI_PROVIDER=codex-cli`, `AI_MODEL` (for example `gpt-6.1-sol`) and optionally `AI_REASONING_EFFORT`; triage then runs
+through the local `codex exec`, one call at a time. The same variables switch the app's live triage.
 Calls are sequential, 300 ms apart (`EVAL_DELAY_MS`); rate limits/timeouts get one retry with backoff.
 Results are saved after every case; add `--resume` to continue after a quota stop.
 Provider errors remain errors and cannot count as passes. Results contain no credentials.
@@ -161,7 +169,7 @@ Replies are drafts for copying or marking sent; the app does not send email auto
 - [x] Zero-key replay snapshot with recorded sandbox receipts and deterministic simulated refunds.
 - [x] Per-triage trace, manual fallback, explicit fact confirmation and held-out offline evaluation.
 - [x] Community filters, saved views, pinned totals, CSV export and persisted layouts.
-- [ ] Online held-out evaluation is in progress under free-tier quota; keyword inference is weak across languages/items.
+- [x] Held-out live evaluation: 21/30 pass, 0 unsafe; the keyword fallback stays weak across languages/items.
 - [ ] Webhook verification and event processing are tested with mocks; no deployed live webhook verification claimed.
 - [ ] Sandbox only; no production-money integration or delivery-carrier/return-warehouse verification.
 - [ ] Human fact confirmation remains necessary; zero unsafe execution does not prove model facts are true.
