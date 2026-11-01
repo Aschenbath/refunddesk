@@ -364,6 +364,11 @@ export function createApp(
   app.all("/api/*", (c) =>
     c.json({ error: { message: "API route not found" } }, 404),
   );
+  if (process.env.NODE_ENV === "development") {
+    // `npm run dev` / `npm run demo`: Vite serves the UI on 15481 (vite.config.ts); send stray page visits there.
+    app.get("*", (c) => c.redirect(`http://localhost:15481${new URL(c.req.url).pathname}`));
+    return app;
+  }
   app.use("/*", serveStatic({ root: "./dist/client" }));
   app.get("*", serveStatic({ path: "./dist/client/index.html" }));
   return app;

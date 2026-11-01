@@ -19,7 +19,12 @@ const service = new DeskService(
 service.recoverInterrupted();
 const server = serve(
   { fetch: createApp(service).fetch, port: config.port, hostname: "0.0.0.0" },
-  () => console.log(`RefundDesk ${replay ? "replay demo — no money moves, no keys needed" : "sandbox"}: http://localhost:${config.port}`),
+  () => {
+    const mode = replay ? "replay demo — no money moves, no keys needed" : "sandbox";
+    // In development Vite serves the UI on its own port and proxies /api here; only print the URL people should open.
+    if (process.env.NODE_ENV === "development") console.log(`RefundDesk ${mode}. API listening on port ${config.port}.`);
+    else console.log(`RefundDesk ${mode}: http://localhost:${config.port}`);
+  },
 );
 for (const signal of ["SIGINT", "SIGTERM"] as const)
   process.on(signal, () =>
