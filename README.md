@@ -19,7 +19,7 @@ Payment records retain real sandbox IDs; new refunds are deterministic simulatio
 Demo payment state resets on restart; column layouts and saved-view filters persist in your browser.
 If the initial connection fails, use **Retry connection** to load the workspace again.
 
-Demo video: https://youtu.be/MqBYFDOw1XI
+Demo video: https://youtu.be/Byix9SEMFck
 
 ## What it does
 
