@@ -4,7 +4,7 @@ import {
   ModuleRegistry, ClientSideRowModelModule, ClientSideRowModelApiModule, ColumnApiModule,
   TextFilterModule, NumberFilterModule, CustomFilterModule, QuickFilterModule, CsvExportModule,
   GridStateModule, PinnedRowModule, RowSelectionModule, TextEditorModule, NumberEditorModule,
-  RowStyleModule, CellStyleModule, CellApiModule, themeQuartz,
+  RowStyleModule, RowAutoHeightModule, CellStyleModule, CellApiModule, themeQuartz,
   type ColDef, type GridApi, type GridState, type ICellRendererParams, type DoesFilterPassParams,
 } from "ag-grid-community";
 import type { DeskCase, LedgerRow } from "../core/types.js";
@@ -16,7 +16,7 @@ import { memberships, viewNames, presetState, readLayout, writeLayout, clearLayo
 
 ModuleRegistry.registerModules([ClientSideRowModelModule, ClientSideRowModelApiModule, ColumnApiModule,
   TextFilterModule, NumberFilterModule, CustomFilterModule, QuickFilterModule, CsvExportModule,
-  GridStateModule, PinnedRowModule, RowSelectionModule, TextEditorModule, NumberEditorModule, RowStyleModule, CellStyleModule, CellApiModule]);
+  GridStateModule, PinnedRowModule, RowSelectionModule, TextEditorModule, NumberEditorModule, RowStyleModule, RowAutoHeightModule, CellStyleModule, CellApiModule]);
 const gridTheme = themeQuartz.withParams({ accentColor: "#1c6259", backgroundColor: "#fffefa", foregroundColor: "#293c38",
   fontFamily: "Aptos, Segoe UI, sans-serif", fontSize: 13, headerFontSize: 11, headerFontWeight: 600,
   borderColor: "#e4e7df", headerBackgroundColor: "#f5f5ef", rowBorder: { color: "#eeefe8" },

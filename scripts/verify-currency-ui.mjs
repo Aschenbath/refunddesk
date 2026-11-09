@@ -69,6 +69,9 @@ async (page) => {
   const layouts = await page.evaluate(() => ['refunddesk.queue.v1', 'refunddesk.ledger.v1'].map((key) => [key, localStorage.getItem(key)]));
   const errors = [], writes = [], external = [], downloads = [], stubbedFonts = [];
   const onError = (error) => errors.push(error.message);
+  const onConsole = (message) => {
+    if (message.type() === 'error' && message.text().startsWith('AG Grid:')) errors.push(message.text());
+  };
   const routeHandler = async (route) => {
     const request = route.request(), address = new URL(request.url());
     if (address.origin === 'https://fonts.googleapis.com' && /^\/css2?$/.test(address.pathname) && request.method() === 'GET' && request.resourceType() === 'stylesheet') {
@@ -129,6 +132,7 @@ async (page) => {
     for (const [field, value] of Object.entries(expected)) check(row[field] === value, `${label} ${field}: expected ${JSON.stringify(value)}, got ${JSON.stringify(row[field])}`);
   };
   page.on('pageerror', onError);
+  page.on('console', onConsole);
   await page.route('**/*', routeHandler);
   try {
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -205,6 +209,7 @@ async (page) => {
   } finally {
     await page.unroute('**/*', routeHandler);
     page.removeListener('pageerror', onError);
+    page.removeListener('console', onConsole);
     await page.evaluate((saved) => { for (const [key, value] of saved) if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value); }, layouts);
     if (viewport) await page.setViewportSize(viewport);
     await page.reload();

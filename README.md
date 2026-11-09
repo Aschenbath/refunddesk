@@ -137,6 +137,7 @@ Pinned bottom rows sum only currently filtered rows, and update after filters an
 CSV export uses `exportDataAsCsv`, currency-labelled amounts, readable headers, filtered/sorted rows, and formula-safe customer text.
 Model amounts keep the proposal currency; allowances and payments keep their own recorded currency. Queue, ledger and batch
 totals group currencies instead of adding them together. Historical amounts without a recorded currency are labelled unknown.
+Amount cells wrap and automatically grow their rows so currency labels and grouped totals remain visible.
 Queue Approved values are the current approval amount; completed case receipts are shown separately in Refunded.
 Queue review batches replace queue-wide triage with Community checkbox selection (header selects filtered rows), selected model/allowance totals and blocked/ready/refunded counts; row click or Enter still opens a case. Selection survives filters and refreshes, clears on reload, and uses **Clear selection** for hidden rows.
 The bar offers sequential **Triage selected** (new cases only, with skips/failures reported), **Reconcile selected orders** once per distinct order, and formula-safe **Export outcomes** in place of view export while selected. Outcomes include status, current approved/completed refund amounts, case refund IDs and blocking reasons; approvals remain individual and revision-bound. Replay UI checks cover selection, exports and partial batch failures.
