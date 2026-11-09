@@ -28,6 +28,7 @@ Demo video: https://youtu.be/MqBYFDOw1XI
 - Computes allowed amounts in integer cents from merchant policies and the remaining capture balance.
 - Lets an owner find risky cases, correct them, approve the reviewed revision, and export the filtered AG Grid view.
 - Records PayPal refund lifecycle, recovers uncertain outcomes, and reconciles exact receipts, amounts and currencies.
+- Exports a self-contained case report with the original proposal, saved owner review, approval snapshot and refund records.
 
 ## Architecture
 
@@ -148,6 +149,23 @@ its statements; cycle groups and initializers stay together. Tests check the ins
 generated source groups; final chunk sizes come from the production build.
 Production browser checks cover the resulting chunks. No JS chunk exceeds 500 kB.
 
+## Case reports
+
+Open any case and choose **Export case report** to download a single HTML file that opens offline and prints from your browser.
+This complements the queue's summary CSV with the customer message, original triage proposal and source, saved human review,
+policy calculations, frozen approval data when available, case-specific refund records and the last saved order reconciliation.
+The download reads the latest saved case; it excludes unsaved edits and includes customer details.
+
+Reports are current snapshots, not a complete audit history or a PayPal-signed receipt. Original model output stays separate
+from the current human-edited proposal. A stored approval snapshot identifies the reviewed revision and frozen facts; old
+fixtures without one say so. Policy text comes from the current app version. Request-start and locally recorded refund times
+are not presented as approval or PayPal-completion times. Pending, failed and uncertain outcomes retain their status.
+Historical calculator amounts with no stored currency are shown in minor units without guessing their currency.
+
+Export uses an authenticated read-only endpoint and does not call a model, send a payment, refresh PayPal or change the case.
+Reports have no scripts or external resources. Replay reports identify recorded sandbox samples and simulated new refunds;
+replay dates are rebased for the demo. The case drawer also labels replay receipts so screenshots preserve that context.
+
 ## Safety model
 
 The AI can look up candidate orders, read merchant policies, propose facts/amounts, and draft a reply.
@@ -246,6 +264,9 @@ With a fresh replay demo open in Playwright CLI, run `playwright-cli run-code --
 to check filters, persisted views, keyboard review, CSV values and both screenshot sizes.
 UI checks also cover rate-limit waits, connection recovery, and a saved message whose triage fails.
 Batch checks add temporary messages to replay memory; restart the demo before rerunning.
+Run `playwright-cli run-code --filename scripts/verify-case-report.mjs` against replay to verify downloads, a frozen approval,
+export error recovery, escaped customer text, offline rendering at 320/390/1440 pixels and print content.
+That check approves one simulated refund and adds a test message in replay memory; restart before running it again.
 
 ## How it was built
 

@@ -721,6 +721,7 @@ export function App() {
           value={current}
           orders={orders}
           busy={busy}
+          demoMode={demoMode}
           onClose={close}
           onEdit={edit}
           onAction={action}

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { DeskCase, Order } from "../core/types.js";
+import type { CaseReport } from "../core/case-report.js";
 import { policies } from "../core/policies.js";
-import { money, parseAmount } from "./api.js";
+import { api, money, parseAmount } from "./api.js";
 import { Chip } from "./Chip.js";
 import { FactConfirmation } from "./FactConfirmation.js";
 
@@ -31,6 +32,7 @@ export function Drawer({
   value,
   orders,
   busy,
+  demoMode,
   onClose,
   onEdit,
   onAction,
@@ -38,6 +40,7 @@ export function Drawer({
   value: DeskCase;
   orders: Order[];
   busy: boolean;
+  demoMode: string;
   onClose: () => void;
   onEdit: (changes: Record<string, unknown>) => Promise<boolean>;
   onAction: (action: string, body?: unknown) => void;
@@ -51,6 +54,9 @@ export function Drawer({
   const [formError, setFormError] = useState("");
   const [retryReason, setRetryReason] = useState("");
   const [retryConfirmed, setRetryConfirmed] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const exportingRef = useRef(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -59,6 +65,7 @@ export function Drawer({
     setOverride(value.duplicateOverride || "");
     setCopied(false);
     setFormError("");
+    setReportError("");
     setRetryConfirmed(false);
   }, [value]);
   useEffect(() => {
@@ -91,6 +98,30 @@ export function Drawer({
     !!value.attempt ||
     ["refunded", "rejected", "processing", "pending"].includes(value.status);
   const amountCents = parseAmount(amount);
+  const replay = demoMode === "replay";
+  const exportReport = async () => {
+    if (busy || exportingRef.current) return;
+    exportingRef.current = true;
+    setExporting(true);
+    setReportError("");
+    try {
+      const report = await api<CaseReport>(`/cases/${encodeURIComponent(value.id)}/report`);
+      const { renderCaseReport, caseReportFilename } = await import("./case-report.js");
+      const url = URL.createObjectURL(new Blob([renderCaseReport(report)], { type: "text/html;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = caseReportFilename(report.case.id);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setReportError(error instanceof Error ? error.message : "Could not export this case. Please try again.");
+    } finally {
+      exportingRef.current = false;
+      setExporting(false);
+    }
+  };
   const changed = amountCents !== value.check?.approvedCents;
   const matchingOrders = (value.candidates || []).filter((order) =>
     `${order.id} ${order.customerName} ${order.email}`
@@ -131,6 +162,13 @@ export function Drawer({
             </Chip>
             <span>{value.orderId || "Order not matched"}</span>
           </div>
+          <div className="case-report-action">
+            <button className="button secondary" disabled={busy || exporting} onClick={() => void exportReport()}>
+              {exporting ? "Preparing report…" : "Export case report"}
+            </button>
+            <small>Downloads saved data, including customer details. Unsaved edits are excluded.</small>
+          </div>
+          {reportError && <p className="field-error" role="alert">{reportError}</p>}
           {value.error && <div className="notice blocked">{value.error}</div>}
           {["refunded", "pending"].includes(value.status) && (
             <div className="success-receipt">
@@ -139,20 +177,21 @@ export function Drawer({
               </span>
               <div>
                 <strong>
-                  {value.status === "pending"
-                    ? "PayPal refund pending"
-                    : "Refund completed with PayPal"}
+                  {replay
+                    ? value.status === "pending" ? "Replay refund pending" : "Refund recorded in replay"
+                    : value.status === "pending" ? "PayPal refund pending" : "Refund completed with PayPal"}
                 </strong>
                 {value.refunds
                   ?.filter((refund) => refund.caseId === value.id)
                   .map((refund) => (
                     <p key={refund.id}>
-                      {money(refund.amountCents)} ·{" "}
+                      {money(refund.amountCents, refund.currency)} ·{" "}
                       {refund.status.toLowerCase()}
                       <code>{refund.id}</code>
+                      {replay && <small>{refund.id.startsWith("REPLAY-") ? "Simulated replay receipt" : "Recorded sandbox receipt"}</small>}
                     </p>
                   ))}
-                <small>The ledger shows the latest reconciliation.</small>
+                <small>{replay ? "Replay records only. New refunds are simulated." : "The ledger shows the latest reconciliation."}</small>
               </div>
             </div>
           )}
@@ -589,7 +628,7 @@ export function Drawer({
           ) : locked ? (
             <p>
               {value.status === "pending"
-                ? "Waiting for PayPal to complete this refund."
+                ? replay ? "Replay records show this refund as pending." : "Waiting for PayPal to complete this refund."
                 : value.status === "rejected"
                   ? "This case was rejected. No payment was made."
                   : "Refund locked. Use Check PayPal to resolve its outcome."}
@@ -623,7 +662,7 @@ export function Drawer({
               </button>
             </>
           )}
-          <small>Human approval · PayPal sandbox</small>
+          <small>{replay ? "Human approval · Replay simulation · No money moves" : "Human approval · PayPal sandbox"}</small>
         </footer>
       </aside>
     </>

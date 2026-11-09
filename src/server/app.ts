@@ -8,6 +8,7 @@ import { PayPalError } from "./paypal.js";
 import { ledgerRow, reconcile } from "./reconcile.js";
 import { factsSchema } from "../core/types.js";
 import { redactError } from "./errors.js";
+import { createCaseReport } from "./case-report.js";
 import {
   ownerConfig,
   hasSession,
@@ -169,6 +170,9 @@ export function createApp(
     c.json(service.store.listCases().map((value) => service.detail(value.id))),
   );
   app.get("/api/cases/:id", (c) => c.json(service.detail(c.req.param("id"))));
+  app.get("/api/cases/:id/report", (c) => c.json(
+    createCaseReport(service, c.req.param("id"), config.demoMode === "replay" ? "replay" : "sandbox"),
+  ));
   app.post("/api/cases", async (c) =>
     c.json(
       service.createMessage(messageSchema.parse(JSON.parse(c.get("rawBody")))),
