@@ -191,9 +191,64 @@ async (page) => {
   await page.unroute('**/api/orders/*/reconcile');
   await batch.getByRole('button', { name: 'Clear selection' }).click();
   await page.getByRole('textbox', { name: 'Search queue' }).fill('');
+  // A failed session lookup must show an error and recover without reloading the tab.
+  await page.route('**/api/session', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Injected connection failure' } }) }));
+  await page.reload();
+  await page.getByRole('alert').filter({ hasText: 'Injected connection failure' }).waitFor();
+  await page.getByRole('button', { name: 'Retry connection', exact: true }).waitFor();
+  await page.screenshot({ path: 'output/playwright/connection-retry.png' });
+  await page.unroute('**/api/session');
+  await page.getByRole('button', { name: 'Retry connection', exact: true }).click();
+  await page.getByRole('button', { name: /^Risky/ }).waitFor();
+
+  // Persisted creation survives a later triage failure; returning to the form must not resubmit it.
+  let createRequests = 0;
+  await page.route('**/api/cases', async (route) => {
+    if (route.request().method() === 'POST') createRequests++;
+    await route.continue();
+  });
+  await page.route('**/api/cases/*/triage', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Injected saved-message triage failure' } }) }));
+  await page.getByRole('button', { name: 'Inbox', exact: true }).click();
+  await page.getByLabel('Customer name', { exact: true }).fill('Maya Chen');
+  await page.getByLabel('Email address', { exact: true }).fill('maya@example.test');
+  await page.getByLabel('Subject', { exact: true }).fill('Saved-message recovery check');
+  await page.getByLabel('Customer message', { exact: true }).fill('FC-1001 arrived with a cracked mug. Please refund the damaged mug.');
+  await page.getByRole('button', { name: 'Add & triage message →', exact: true }).click();
+  await page.getByRole('alert').filter({ hasText: 'Message saved. Triage did not finish' }).waitFor();
+  check(createRequests === 1, 'Saving and triaging created more than one message');
+  const savedCases = (await (await page.request.get(url('/api/cases'))).json()).filter((value) => value.subject === 'Saved-message recovery check');
+  check(savedCases.length === 1 && savedCases[0].status === 'new', 'Failed triage did not retain exactly one new case');
+  await page.screenshot({ path: 'output/playwright/saved-message-recovery.png' });
+  await page.getByRole('button', { name: 'Inbox', exact: true }).click();
+  for (const label of ['Customer name', 'Email address', 'Subject', 'Customer message']) check(await page.getByLabel(label, { exact: true }).inputValue() === '', `Saved message left ${label} in the form`);
+  await page.getByRole('button', { name: 'Add & triage message →', exact: true }).click();
+  check(createRequests === 1, 'Submitting the cleared form duplicated the saved message');
+  await page.unroute('**/api/cases');
+  await page.unroute('**/api/cases/*/triage');
+
+  // Exercise the actual UI/API retry path with a short injected server cooldown.
+  await page.getByRole('button', { name: /^Approval queue/ }).click();
+  await page.getByRole('button', { name: /^All\d*$/ }).click();
+  await page.getByRole('textbox', { name: 'Search queue' }).fill('Saved-message recovery check');
+  await total.getByText('1 cases · totals', { exact: true }).waitFor();
+  await headerCheckbox.check();
+  const retryTimes = [];
+  await page.route('**/api/cases/*/triage', async (route) => {
+    retryTimes.push(Date.now());
+    if (retryTimes.length === 1) await route.fulfill({ status: 429, headers: { 'Retry-After': '1' }, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Injected rate limit' } }) });
+    else await route.fulfill({ response: await route.fetch() });
+  });
+  await batch.getByRole('button', { name: 'Triage selected' }).click();
+  await batch.getByText(/rate limited; waiting 1s before retry 1\/2/).waitFor();
+  await page.screenshot({ path: 'output/playwright/batch-rate-limit-wait.png' });
+  await batch.getByText('Triage: 1 triaged · 0 skipped · 0 failed', { exact: true }).waitFor();
+  check(retryTimes.length === 2 && retryTimes[1] - retryTimes[0] >= 950, 'Batch ignored Retry-After or retried excessively');
+  await page.unroute('**/api/cases/*/triage');
+  await batch.getByRole('button', { name: 'Clear selection' }).click();
+  await page.getByRole('textbox', { name: 'Search queue' }).fill('');
   await page.getByRole('button', { name: /^Risky/ }).click();
   await page.setViewportSize({ width: 1440, height: 900 });
   check(errors.length === 0, `Browser runtime errors: ${errors.join('; ')}`);
   const productionChunks = await page.locator('script[src^="/assets/"]').count() > 0;
-  return { passed: true, productionChunks, savedViews: true, floatingFilters: true, persistedFilters: true, keyboardReview: true, highlightedEvidence: true, filteredTotals: true, csvDollarExports: true, filteredSelection: true, batchSummary: true, outcomeExports: true, sequentialTriage: true, staleCaseSkipped: true, partialFailure: true, distinctOrderReconciliation: true, unmatchedOrderSkipped: true, screenshots: 10, browserErrors: errors };
+  return { passed: true, productionChunks, savedViews: true, floatingFilters: true, persistedFilters: true, keyboardReview: true, highlightedEvidence: true, filteredTotals: true, csvDollarExports: true, filteredSelection: true, batchSummary: true, outcomeExports: true, sequentialTriage: true, staleCaseSkipped: true, partialFailure: true, distinctOrderReconciliation: true, unmatchedOrderSkipped: true, connectionRecovery: true, savedMessageRecovery: true, rateLimitRecovery: true, screenshots: 13, browserErrors: errors };
 }

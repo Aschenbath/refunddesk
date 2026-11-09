@@ -1,8 +1,35 @@
 import type { DeskCase } from "../core/types.js";
 import { memberships } from "./grid-state.js";
+import { ApiError } from "./api.js";
 
 export type BatchAction = "triage" | "reconcile";
 export interface BatchReport { summary: string; details: string[] }
+const TRIAGE_MAX_RETRIES = 2;
+const TRIAGE_MAX_WAIT_MS = 60_000;
+export async function triageBatchCase(id: string, options: {
+  readCase: (id: string) => Promise<Pick<DeskCase, "status">>;
+  triageCase: (id: string) => Promise<unknown>;
+  onWait: (milliseconds: number, retry: number) => void;
+  wait?: (milliseconds: number) => Promise<void>;
+}): Promise<DeskCase["status"] | null> {
+  const wait = options.wait ?? ((milliseconds) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+  for (let retry = 0; ; retry++) {
+    // Waiting can give another session time to review or submit this case.
+    const value = await options.readCase(id);
+    if (value.status !== "new") return value.status;
+    try {
+      await options.triageCase(id);
+      return null;
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 429 || retry >= TRIAGE_MAX_RETRIES) throw error;
+      const milliseconds = error.retryAfterMs ?? TRIAGE_MAX_WAIT_MS;
+      // Never retry earlier than a server's longer requested delay.
+      if (!Number.isFinite(milliseconds) || milliseconds < 0 || milliseconds > TRIAGE_MAX_WAIT_MS) throw error;
+      options.onWait(milliseconds, retry + 1);
+      await wait(milliseconds);
+    }
+  }
+}
 export const csvCell = (value: unknown) => typeof value === "string" && /^[=+@\-\t\r]/.test(value) ? `'${value}` : value == null ? "" : String(value);
 export function selectionSummary(cases: DeskCase[]) {
   return cases.reduce((sum, value) => {

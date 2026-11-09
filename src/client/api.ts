@@ -2,9 +2,22 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly retryAfterMs: number | null = null,
   ) {
     super(message);
   }
+}
+export function parseRetryAfter(value: string | null, now = Date.now()): number | null {
+  const text = value?.trim();
+  if (!text) return null;
+  if (/^\d+$/.test(text)) {
+    const milliseconds = Number(text) * 1000;
+    return Number.isFinite(milliseconds) ? milliseconds : null;
+  }
+  // Reject malformed numeric values instead of treating them as calendar dates.
+  if (!/^[A-Za-z]/.test(text)) return null;
+  const date = Date.parse(text);
+  return Number.isFinite(date) ? Math.max(0, date - now) : null;
 }
 export async function api<T>(
   path: string,
@@ -23,6 +36,7 @@ export async function api<T>(
     throw new ApiError(
       `${error?.message || "Request failed"}${error?.issue ? ` · ${error.issue}` : ""}${error?.debug_id ? ` · PayPal debug ${error.debug_id}` : ""}`,
       response.status,
+      parseRetryAfter(response.headers.get("Retry-After")),
     );
   }
   return result as T;

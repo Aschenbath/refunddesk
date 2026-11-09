@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { csvCell, outcomeRows, outcomesCsv, selectionSummary } from "../src/client/review-batch.js";
+import { describe, expect, it, vi } from "vitest";
+import { csvCell, outcomeRows, outcomesCsv, selectionSummary, triageBatchCase } from "../src/client/review-batch.js";
+import { ApiError } from "../src/client/api.js";
 import { emptyFacts, type Check, type DeskCase, type Refund } from "../src/core/types.js";
 import { proposal } from "./fixtures/domain.js";
 
@@ -12,6 +13,77 @@ const caseRow = (changes: Partial<DeskCase> = {}): DeskCase => ({
 const receipt = (changes: Partial<Refund> = {}): Refund => ({
   id: "refund-1", caseId: "case-1", orderId: "FC-1001", amountCents: 1200, currency: "USD", status: "COMPLETED",
   requestId: "request-1", allocations: [], createdAt: "2026-10-01", ...changes,
+});
+
+describe("batch triage rate-limit recovery", () => {
+  it("finishes more than twelve sequential cases after the server's requested wait", async () => {
+    let now = 0, used = 0, resetAt = 60_000;
+    const completed: string[] = [];
+    const readCase = vi.fn(async () => ({ status: "new" as const }));
+    const triageCase = vi.fn(async (id: string) => {
+      if (now >= resetAt) { used = 0; resetAt = now + 60_000; }
+      if (++used > 12) throw new ApiError("Too many requests", 429, resetAt - now);
+      completed.push(id);
+    });
+    const wait = vi.fn(async (milliseconds: number) => { now += milliseconds; });
+    const onWait = vi.fn();
+    for (let index = 1; index <= 15; index++) {
+      expect(await triageBatchCase(`case-${index}`, { readCase, triageCase, wait, onWait })).toBeNull();
+    }
+    expect(completed).toEqual(Array.from({ length: 15 }, (_, index) => `case-${index + 1}`));
+    expect(triageCase).toHaveBeenCalledTimes(16);
+    expect(readCase).toHaveBeenCalledTimes(16);
+    expect(wait).toHaveBeenCalledExactlyOnceWith(60_000);
+    expect(onWait).toHaveBeenCalledExactlyOnceWith(60_000, 1);
+  });
+
+  it("skips a case reviewed by another session while the batch waits", async () => {
+    const readCase = vi.fn()
+      .mockResolvedValueOnce({ status: "new" })
+      .mockResolvedValueOnce({ status: "ready" });
+    const triageCase = vi.fn().mockRejectedValue(new ApiError("Rate limited", 429, 10_000));
+    const wait = vi.fn(async () => {});
+    expect(await triageBatchCase("case-1", { readCase, triageCase, wait, onWait: vi.fn() })).toBe("ready");
+    expect(triageCase).toHaveBeenCalledTimes(1);
+    expect(readCase).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledExactlyOnceWith(10_000);
+  });
+
+  it("stops after two retries and uses a bounded default wait without Retry-After", async () => {
+    const error = new ApiError("Two jobs are already running", 429);
+    const readCase = vi.fn(async () => ({ status: "new" as const }));
+    const triageCase = vi.fn().mockRejectedValue(error);
+    const wait = vi.fn(async () => {});
+    const onWait = vi.fn();
+    await expect(triageBatchCase("case-1", { readCase, triageCase, wait, onWait })).rejects.toBe(error);
+    expect(triageCase).toHaveBeenCalledTimes(3);
+    expect(readCase).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls).toEqual([[60_000], [60_000]]);
+    expect(onWait.mock.calls).toEqual([[60_000, 1], [60_000, 2]]);
+  });
+
+  it.each([new ApiError("Sign in", 401), new ApiError("Server error", 500), new Error("Network failed"), new ApiError("Wait longer", 429, 120_000)])(
+    "reports %s without waiting or issuing another triage request", async (error) => {
+      const readCase = vi.fn(async () => ({ status: "new" as const }));
+      const triageCase = vi.fn().mockRejectedValue(error);
+      const wait = vi.fn(async () => {});
+      const onWait = vi.fn();
+      await expect(triageBatchCase("case-1", { readCase, triageCase, wait, onWait })).rejects.toBe(error);
+      expect(triageCase).toHaveBeenCalledTimes(1);
+      expect(wait).not.toHaveBeenCalled();
+      expect(onWait).not.toHaveBeenCalled();
+    },
+  );
+
+  it("stops before another triage if rechecking the case fails after a wait", async () => {
+    const error = new ApiError("Sign in again", 401);
+    const readCase = vi.fn().mockResolvedValueOnce({ status: "new" }).mockRejectedValueOnce(error);
+    const triageCase = vi.fn().mockRejectedValue(new ApiError("Rate limited", 429, 0));
+    const wait = vi.fn(async () => {});
+    await expect(triageBatchCase("case-1", { readCase, triageCase, wait, onWait: vi.fn() })).rejects.toBe(error);
+    expect(triageCase).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledExactlyOnceWith(0);
+  });
 });
 
 describe("review batch", () => {

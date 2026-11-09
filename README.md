@@ -17,10 +17,9 @@ Choose **Risky**, open a case, expand **How the AI got here**, review the facts,
 The persistent **Replay demo — no money moves, no keys needed** badge identifies this mode.
 Payment records retain real sandbox IDs; new refunds are deterministic simulations.
 Demo payment state resets on restart; column layouts and saved-view filters persist in your browser.
+If the initial connection fails, use **Retry connection** to load the workspace again.
 
-Demo video: <!-- VIDEO_URL -->
-
-Hosted demo: <!-- DEMO_URL -->
+Demo video: https://youtu.be/MqBYFDOw1XI
 
 ## What it does
 
@@ -138,6 +137,11 @@ CSV export uses `exportDataAsCsv`, dollar amounts, readable headers, filtered/so
 Queue Approved values are the current approval amount; completed case receipts are shown separately in Refunded.
 Queue review batches replace queue-wide triage with Community checkbox selection (header selects filtered rows), selected model/allowance totals and blocked/ready/refunded counts; row click or Enter still opens a case. Selection survives filters and refreshes, clears on reload, and uses **Clear selection** for hidden rows.
 The bar offers sequential **Triage selected** (new cases only, with skips/failures reported), **Reconcile selected orders** once per distinct order, and formula-safe **Export outcomes** in place of view export while selected. Outcomes include status, current approved/completed refund amounts, case refund IDs and blocking reasons; approvals remain individual and revision-bound. Replay UI checks cover selection, exports and partial batch failures.
+Batch triage shows rate-limit waits and retries only HTTP 429 responses, at most twice per case. It respects `Retry-After`
+up to 60 seconds per wait (60 seconds when absent) and rechecks the case before retrying; longer delays and other failures
+are reported for manual retry. Payment and reconciliation requests are not automatically retried.
+Adding a message clears its input as soon as the server confirms it is saved. If triage fails afterward, the saved case
+remains in the queue: open it under **All** and use **Triage this case**, without importing the message again.
 
 The grid loads lazily. A build adapter separates AG Grid’s flattened ESM into dependency groups without rewriting
 its statements; cycle groups and initializers stay together. Tests check the installed package shape and the size of the
@@ -240,6 +244,7 @@ exact reconciliation, scoring and execution bounds for every recorded held-out o
 Screenshots and local verification evidence are in `output/playwright/`.
 With a fresh replay demo open in Playwright CLI, run `playwright-cli run-code --filename scripts/verify-ui.mjs`
 to check filters, persisted views, keyboard review, CSV values and both screenshot sizes.
+UI checks also cover rate-limit waits, connection recovery, and a saved message whose triage fails.
 Batch checks add temporary messages to replay memory; restart the demo before rerunning.
 
 ## How it was built

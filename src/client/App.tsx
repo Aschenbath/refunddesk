@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { DeskCase, LedgerRow, Order } from "../core/types.js";
 import { api, money, ApiError } from "./api.js";
-import type { BatchAction, BatchReport } from "./review-batch.js";
+import { triageBatchCase, type BatchAction, type BatchReport } from "./review-batch.js";
 const QueueGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.QueueGrid })));
 const LedgerGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.LedgerGrid })));
 import { Drawer } from "./Drawer.js";
@@ -33,6 +33,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
+  const initializing = useRef(false);
   const [batchReport, setBatchReport] = useState<BatchReport | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -58,21 +59,32 @@ export function App() {
     setLedger(nextLedger);
     setOrders(nextOrders);
   }, []);
-  useEffect(() => {
-    void api<{ authenticated: boolean }>("/session")
-      .then(async (session) => {
-        setAuthenticated(session.authenticated);
-        if (!session.authenticated) return;
-        await Promise.all([
-          refresh(),
-          api<{ aiMode: string; demoMode: string }>("/health").then((result) => {
-            setAiMode(result.aiMode); setDemoMode(result.demoMode);
-          }),
-        ]);
-      })
-      .catch((error) => setError(error.message))
-      .finally(() => setLoading(false));
+  const initialize = useCallback(async () => {
+    if (initializing.current) return;
+    initializing.current = true;
+    setLoading(true);
+    setError("");
+    try {
+      const session = await api<{ authenticated: boolean }>("/session");
+      if (!session.authenticated) {
+        setAuthenticated(false);
+        return;
+      }
+      await Promise.all([
+        refresh(),
+        api<{ aiMode: string; demoMode: string }>("/health").then((result) => {
+          setAiMode(result.aiMode); setDemoMode(result.demoMode);
+        }),
+      ]);
+      setAuthenticated(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Connection failed");
+    } finally {
+      initializing.current = false;
+      setLoading(false);
+    }
   }, [refresh]);
+  useEffect(() => { void initialize(); }, [initialize]);
   const run = useCallback(
     async (
       operation: () => Promise<unknown>,
@@ -139,10 +151,15 @@ export function App() {
         report(`${action === "triage" ? "Triaging" : "Reconciling"} ${index + 1}/${targets.length}…`);
         try {
           if (action === "triage") {
-            // Recheck just before each request: a queued case may have changed in another session.
-            const value = await api<DeskCase>(`/cases/${encodeURIComponent(id)}`);
-            if (value.status !== "new") { skipped.push(`${id}: ${value.status.replaceAll("_", " ")}`); continue; }
-            await api(`/cases/${encodeURIComponent(id)}/triage`, "POST");
+            const skippedStatus = await triageBatchCase(id, {
+              readCase: (caseId) => {
+                report(`Triaging ${index + 1}/${targets.length}…`);
+                return api<DeskCase>(`/cases/${encodeURIComponent(caseId)}`);
+              },
+              triageCase: (caseId) => api(`/cases/${encodeURIComponent(caseId)}/triage`, "POST"),
+              onWait: (milliseconds, retry) => report(`Triaging ${index + 1}/${targets.length} · rate limited; waiting ${Math.ceil(milliseconds / 1000)}s before retry ${retry}/2…`),
+            });
+            if (skippedStatus) { skipped.push(`${id}: ${skippedStatus.replaceAll("_", " ")}`); continue; }
           } else {
             const result = await api<LedgerRow>(`/orders/${encodeURIComponent(id)}/reconcile`, "POST");
             if (result.error || result.match === false) throw new Error(result.error || "Ledger mismatch; review this order.");
@@ -206,7 +223,14 @@ export function App() {
   if (authenticated === null)
     return (
       <div className="signin-page">
-        <div className="loading-state">Loading owner workspace…</div>
+        {loading ? <div className="loading-state">Loading owner workspace…</div> : (
+          <div className="signin-card">
+            <span className="eyebrow">Owner workspace</span>
+            <h2>We couldn’t reach your desk.</h2>
+            <p className="field-error" role="alert">{error || "Connection failed. Check that the server is running."}</p>
+            <button className="button primary" onClick={() => void initialize()}>Retry connection</button>
+          </div>
+        )}
       </div>
     );
   if (!authenticated)
@@ -481,20 +505,12 @@ export function App() {
                 onSubmit={async (event) => {
                   event.preventDefault();
                   if (busy) return;
-                  const success = await run(async () => {
-                    if (importMode) {
-                      await api(
-                        "/inbox/import",
-                        "POST",
-                        JSON.parse(importText),
-                      );
-                      return;
-                    }
-                    const value = await api<DeskCase>("/cases", "POST", form);
-                    setSelected(value.id);
-                    await api(`/cases/${value.id}/triage`, "POST");
-                  }, "Message added and ready for review.");
-                  if (success) {
+                  await run(async () => {
+                    const saved = importMode
+                      ? await api<DeskCase[]>("/inbox/import", "POST", JSON.parse(importText))
+                      : [await api<DeskCase>("/cases", "POST", form)];
+                    // Creation has committed even if triage or the next refresh fails.
+                    setCases((previous) => [...saved, ...previous]);
                     setForm({
                       sender: "",
                       email: "",
@@ -502,8 +518,20 @@ export function App() {
                       message: "",
                     });
                     setImportText("");
-                    setView("queue");
-                  }
+                    go("queue");
+                    if (importMode) return;
+                    const value = saved[0];
+                    try {
+                      await api(`/cases/${value.id}/triage`, "POST");
+                    } catch (error) {
+                      const detail = error instanceof Error ? error.message : "Request failed";
+                      const message = `Message saved. Triage did not finish: ${detail}. Find the saved message under All in the queue, open it, and use Triage this case.`;
+                      throw error instanceof ApiError
+                        ? new ApiError(message, error.status, error.retryAfterMs)
+                        : new Error(message);
+                    }
+                    setSelected(value.id);
+                  }, importMode ? "Messages imported. Select them in the queue to triage." : "Message added and ready for review.");
                 }}
               >
                 {importMode ? (
