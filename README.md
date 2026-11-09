@@ -134,7 +134,9 @@ Saved views are **Needs attention**, **Risky**, **Ready to approve**, **Refunded
 Each stores a filter model, sort and column state. Native filters remain editable within each view.
 Layouts use the grid state API and guarded `localStorage`; **Reset layout** restores defaults.
 Pinned bottom rows sum only currently filtered rows, and update after filters and server-validated edits.
-CSV export uses `exportDataAsCsv`, dollar amounts, readable headers, filtered/sorted rows, and formula-safe customer text.
+CSV export uses `exportDataAsCsv`, currency-labelled amounts, readable headers, filtered/sorted rows, and formula-safe customer text.
+Model amounts keep the proposal currency; allowances and payments keep their own recorded currency. Queue, ledger and batch
+totals group currencies instead of adding them together. Historical amounts without a recorded currency are labelled unknown.
 Queue Approved values are the current approval amount; completed case receipts are shown separately in Refunded.
 Queue review batches replace queue-wide triage with Community checkbox selection (header selects filtered rows), selected model/allowance totals and blocked/ready/refunded counts; row click or Enter still opens a case. Selection survives filters and refreshes, clears on reload, and uses **Clear selection** for hidden rows.
 The bar offers sequential **Triage selected** (new cases only, with skips/failures reported), **Reconcile selected orders** once per distinct order, and formula-safe **Export outcomes** in place of view export while selected. Outcomes include status, current approved/completed refund amounts, case refund IDs and blocking reasons; approvals remain individual and revision-bound. Replay UI checks cover selection, exports and partial batch failures.
@@ -177,10 +179,15 @@ Offline cases say **Demo fixture, not a live model call**; unavailable providers
 Owners can review manually even before triage: choose an order from the case’s candidates, intent and individual clauses,
 then confirm facts through the same calculator. An already assigned order remains available for human identity review.
 Confirmed units must belong to that order and cannot exceed purchased quantities.
+Changing delivery dates creates a local draft and removes the visible confirmation. Approval stays disabled until the owner
+confirms and saves those dates; failed saves keep the inputs available for retry. The allowance then uses the saved dates.
+Unsaved customer replies survive amount/fact updates, failed saves and older save responses received while the owner is typing.
 Approval binds to the current revision and displayed amount, reconciles first, then freezes facts, allocations and request ID.
 The server rejects amounts above policy allowance or remaining capture balance, including after a concurrent edit.
 Pending/uncertain attempts reserve balance. Exact receipt reconciliation blocks unknown or unallocated refunds.
-Uncertain outcomes use **Check PayPal**; explicit new-ID retry requires investigation and acknowledgement.
+Uncertain outcomes use **Check PayPal**. During the one-hour retry window, **Retry original request** reuses the frozen amount
+and request ID after an explicit owner click. Older unresolved attempts require investigation and acknowledgement before a
+new-ID retry; the app does not retry payments automatically.
 Cookie authentication, origin checks, request-size limits and rate limits protect the owner API.
 Replies are drafts for copying or marking sent; the app does not send email automatically.
 
@@ -267,6 +274,10 @@ Batch checks add temporary messages to replay memory; restart the demo before re
 Run `playwright-cli run-code --filename scripts/verify-case-report.mjs` against replay to verify downloads, a frozen approval,
 export error recovery, escaped customer text, offline rendering at 320/390/1440 pixels and print content.
 That check approves one simulated refund and adds a test message in replay memory; restart before running it again.
+On a fresh replay, `playwright-cli run-code --filename scripts/verify-review-edits.mjs` checks reply-save races, failed and
+delayed date confirmations, and the original-request recovery button; all payment requests in that check are intercepted.
+`playwright-cli run-code --filename scripts/verify-currency-ui.mjs` checks mixed-currency rows, totals and CSV exports using
+intercepted replay responses. These browser checks do not call live payment or model services.
 
 ## How it was built
 

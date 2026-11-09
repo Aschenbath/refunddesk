@@ -41,12 +41,15 @@ export async function api<T>(
   }
   return result as T;
 }
-export function money(cents: number | null | undefined, currency = "USD") {
-  return cents === undefined || cents === null
-    ? "—"
-    : new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-        cents / 100,
-      );
+export function money(cents: number | null | undefined, currency: string | null = "USD") {
+  if (cents === undefined || cents === null) return "—";
+  if (!currency || !/^[A-Z]{3}$/.test(currency))
+    return `${cents.toLocaleString("en-US")} minor units · currency unknown`;
+  // The app stores integer cents. Keep that precision even for a model's
+  // unsupported currency, and avoid ambiguous dollar symbols outside USD.
+  if (currency === "USD") return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+  const amount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
+  return `${currency} ${amount}`;
 }
 export function age(date?: string) {
   if (!date) return "—";

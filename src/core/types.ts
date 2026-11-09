@@ -173,6 +173,8 @@ export interface DeskCase {
     state: string;
     createdAt: string;
     amountCents: number;
+    currency?: string;
+    retryOriginalAllowed?: boolean;
     retryAllowed: boolean;
   } | null;
 }

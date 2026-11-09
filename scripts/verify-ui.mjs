@@ -3,6 +3,22 @@
 async (page) => {
   const check = (condition, message) => { if (!condition) throw new Error(message); };
   const url = (path) => new URL(path, page.url()).href;
+  const csvRows = (source) => {
+    const rows = [], text = source.replace(/^\uFEFF/, '');
+    let row = [], field = '', quoted = false;
+    for (let index = 0; index < text.length; index++) {
+      const character = text[index];
+      if (character === '"') {
+        if (quoted && text[index + 1] === '"') { field += '"'; index++; }
+        else quoted = !quoted;
+      } else if (!quoted && character === ',') { row.push(field); field = ''; }
+      else if (!quoted && character === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (quoted || character !== '\r') field += character;
+    }
+    if (field || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  };
+  const outcomeHeader = ['Case', 'Revision', 'Customer', 'Order', 'Status', 'Approved', 'Refunded', 'Approved currency', 'Refund IDs', 'Blocking reasons', 'Refunded currency'];
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.reload();
@@ -30,7 +46,9 @@ async (page) => {
   await queueCsv.saveAs('output/playwright/queue-risky.csv');
   let queueText = '';
   for await (const chunk of await queueCsv.createReadStream()) queueText += chunk.toString();
-  check(queueText.includes('Model ($)') && queueText.includes('$140.00'), 'Queue CSV lacks dollar values');
+  const queueRows = csvRows(queueText);
+  check(['Model', 'Allowed', 'Approved', 'Refunded'].every((name) => queueRows[0].includes(name)) && queueText.includes('$140.00'), 'Queue CSV lacks currency-neutral amount headings or its USD values');
+  check(!queueRows[0].some((name) => name.includes('($)')), 'Queue CSV headings incorrectly assume all rows use dollars');
   check(queueText.trim().split(/\r?\n/).length === 11, 'Queue export does not follow Risky filter');
   const batch = page.getByRole('region', { name: 'Review batch' });
   const headerCheckbox = page.getByRole('checkbox', { name: 'Column with Header Selection', exact: true });
@@ -72,6 +90,9 @@ async (page) => {
   let outcomeText = '';
   for await (const chunk of await outcomeCsv.createReadStream()) outcomeText += chunk.toString();
   check(outcomeText.includes('"case-seed-06"') && outcomeText.includes('"72.00"') && outcomeText.includes('"Refund IDs","Blocking reasons"'), 'Selected outcome export is incomplete');
+  const outcomeRows = csvRows(outcomeText);
+  check(JSON.stringify(outcomeRows[0]) === JSON.stringify(outcomeHeader), 'Outcome CSV lost the explicit approved/refunded currency columns or changed the existing field order');
+  check(outcomeRows[1][0] === 'case-seed-06' && outcomeRows[1][5] === '72.00' && outcomeRows[1][6] === '0.00' && outcomeRows[1][7] === 'USD' && outcomeRows[1][10] === 'USD', 'Selected outcome amounts are not paired with their own currencies');
   check(outcomeText.trim().split(/\r?\n/).length === 2, 'Outcome export includes unselected rows');
   await page.reload();
   await page.getByRole('combobox', { name: 'Policy check filter' }).waitFor();
@@ -116,6 +137,8 @@ async (page) => {
   let ledgerText = '';
   for await (const chunk of await ledgerCsv.createReadStream()) ledgerText += chunk.toString();
   check(ledgerText.includes('$12.00') && ledgerText.trim().split(/\r?\n/).length === 3, 'Ledger CSV does not export the filtered dollar amounts');
+  const ledgerRows = csvRows(ledgerText);
+  check(['Captured', 'Refunded', 'Net', 'Pending'].every((name) => ledgerRows[0].includes(name)) && !ledgerRows[0].some((name) => name.includes('($)')), 'Ledger CSV amount headings incorrectly assume one currency');
   await page.reload();
   await page.getByRole('button', { name: 'Ledger', exact: true }).click();
   await total.getByText('2 orders · totals', { exact: true }).waitFor();
@@ -132,7 +155,13 @@ async (page) => {
   let refundedText = '';
   for await (const chunk of await refundedCsv.createReadStream()) refundedText += chunk.toString();
   const completedCases = (await (await page.request.get(url('/api/cases'))).json()).filter((value) => value.status === 'refunded');
+  const refundedRows = csvRows(refundedText);
+  check(JSON.stringify(refundedRows[0]) === JSON.stringify(outcomeHeader), 'Refunded outcome CSV lost its currency headings');
   for (const value of completedCases) for (const refund of value.refunds.filter((refund) => refund.caseId === value.id && refund.status === 'COMPLETED')) check(refundedText.includes(refund.id), 'Outcome CSV omits a case refund receipt');
+  for (const value of completedCases) {
+    const row = refundedRows.find((entry) => entry[0] === value.id);
+    check(row && row[10] === 'USD' && /^\d+\.\d{2}$/.test(row[6]), 'Completed USD receipts lost their separate currency or decimal total');
+  }
   check(refundedText.trim().split(/\r?\n/).length === 3, 'Refunded outcomes contain unselected rows');
   await batch.getByRole('button', { name: 'Clear selection' }).click();
   await page.getByRole('button', { name: 'Reset layout', exact: true }).click();
@@ -250,5 +279,5 @@ async (page) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   check(errors.length === 0, `Browser runtime errors: ${errors.join('; ')}`);
   const productionChunks = await page.locator('script[src^="/assets/"]').count() > 0;
-  return { passed: true, productionChunks, savedViews: true, floatingFilters: true, persistedFilters: true, keyboardReview: true, highlightedEvidence: true, filteredTotals: true, csvDollarExports: true, filteredSelection: true, batchSummary: true, outcomeExports: true, sequentialTriage: true, staleCaseSkipped: true, partialFailure: true, distinctOrderReconciliation: true, unmatchedOrderSkipped: true, connectionRecovery: true, savedMessageRecovery: true, rateLimitRecovery: true, screenshots: 13, browserErrors: errors };
+  return { passed: true, productionChunks, savedViews: true, floatingFilters: true, persistedFilters: true, keyboardReview: true, highlightedEvidence: true, filteredTotals: true, csvDollarExports: true, csvCurrencyLabels: true, filteredSelection: true, batchSummary: true, outcomeExports: true, sequentialTriage: true, staleCaseSkipped: true, partialFailure: true, distinctOrderReconciliation: true, unmatchedOrderSkipped: true, connectionRecovery: true, savedMessageRecovery: true, rateLimitRecovery: true, screenshots: 13, browserErrors: errors };
 }

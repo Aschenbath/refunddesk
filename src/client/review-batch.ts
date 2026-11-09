@@ -1,6 +1,7 @@
 import type { DeskCase } from "../core/types.js";
 import { memberships } from "./grid-state.js";
 import { ApiError } from "./api.js";
+import { caseApprovedCurrency, caseMoneyTotals, caseRefunds, formatMoneyTotals, singleCurrencyCents, sumMoney } from "./money-state.js";
 
 export type BatchAction = "triage" | "reconcile";
 export interface BatchReport { summary: string; details: string[] }
@@ -32,25 +33,28 @@ export async function triageBatchCase(id: string, options: {
 }
 export const csvCell = (value: unknown) => typeof value === "string" && /^[=+@\-\t\r]/.test(value) ? `'${value}` : value == null ? "" : String(value);
 export function selectionSummary(cases: DeskCase[]) {
-  return cases.reduce((sum, value) => {
+  const amounts = cases.map(caseMoneyTotals);
+  const modelTotals = sumMoney(amounts.flatMap((value) => value.model));
+  const allowedTotals = sumMoney(amounts.flatMap((value) => value.allowed));
+  const summary = cases.reduce((sum, value) => {
     sum.count++;
-    sum.modelCents += value.proposal?.proposed_total ?? 0;
-    sum.allowedCents += value.check?.computedCents ?? 0;
     if (value.status === "refunded") sum.refunded++;
     else if (value.status !== "rejected" && value.check?.kind === "blocked") sum.blocked++;
     if (memberships(value).includes("Ready to approve")) sum.ready++;
     return sum;
-  }, { count: 0, modelCents: 0, allowedCents: 0, blocked: 0, ready: 0, refunded: 0 });
+  }, { count: 0, blocked: 0, ready: 0, refunded: 0 });
+  return { ...summary, modelCents: singleCurrencyCents(modelTotals), allowedCents: singleCurrencyCents(allowedTotals), modelTotals, allowedTotals };
 }
 export function outcomeRows(cases: DeskCase[]) {
   return cases.map((value) => {
     // The API includes every receipt for the order; only this case's receipts are its outcome.
-    const refunds = value.refunds?.filter((refund) => refund.caseId === value.id) ?? [];
+    const refunds = caseRefunds(value), amounts = caseMoneyTotals(value);
     return {
       caseId: value.id, revision: value.revision, customer: value.sender, orderId: value.orderId ?? "", status: value.status,
       approvedCents: value.attempt?.amountCents ?? value.check?.approvedCents ?? value.approvedCents,
-      refundedCents: refunds.filter((refund) => refund.status === "COMPLETED").reduce((sum, refund) => sum + refund.amountCents, 0),
-      currency: value.order?.currency ?? value.proposal?.currency ?? "",
+      refundedCents: singleCurrencyCents(amounts.refunded),
+      currency: caseApprovedCurrency(value) ?? "",
+      refundedTotals: amounts.refunded,
       refundIds: refunds.map((refund) => refund.id).join(" | "),
       blockingReasons: [...new Set([...(value.check?.kind === "blocked" ? value.check.reasons : []), ...(value.error ? [value.error] : [])])].join(" | "),
     };
@@ -59,7 +63,10 @@ export function outcomeRows(cases: DeskCase[]) {
 export function outcomesCsv(cases: DeskCase[]) {
   const dollars = (cents: number | null) => cents === null ? "" : (cents / 100).toFixed(2);
   const rows = outcomeRows(cases).map((row) => [row.caseId, row.revision, row.customer, row.orderId, row.status,
-    dollars(row.approvedCents), dollars(row.refundedCents), row.currency, row.refundIds, row.blockingReasons]);
-  return [["Case", "Revision", "Customer", "Order", "Status", "Approved ($)", "Refunded ($)", "Currency", "Refund IDs", "Blocking reasons"], ...rows]
+    row.currency || row.approvedCents === null ? dollars(row.approvedCents) : `${row.approvedCents} minor units`,
+    row.refundedTotals.length < 2 && row.refundedTotals.every((value) => value.currency) ? dollars(row.refundedCents) : formatMoneyTotals(row.refundedTotals),
+    row.currency || "Unknown", row.refundIds, row.blockingReasons,
+    row.refundedTotals.map((value) => value.currency ?? "Unknown").join(" | ")]);
+  return [["Case", "Revision", "Customer", "Order", "Status", "Approved", "Refunded", "Approved currency", "Refund IDs", "Blocking reasons", "Refunded currency"], ...rows]
     .map((row) => row.map((cell) => `"${csvCell(cell).replaceAll('"', '""')}"`).join(",")).join("\r\n");
 }

@@ -1,7 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError, parseRetryAfter } from "../src/client/api.js";
+import { api, ApiError, money, parseRetryAfter } from "../src/client/api.js";
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("money display", () => {
+  it("keeps USD formatting and makes other currencies explicit without rounding away cents", () => {
+    expect(money(14000)).toBe("$140.00");
+    expect(money(-100, "USD")).toBe("-$1.00");
+    expect(money(14000, "EUR")).toBe("EUR 140.00");
+    expect(money(99, "JPY")).toBe("JPY 0.99");
+    expect(money(14000, "CAD")).toBe("CAD 140.00");
+    expect(money(null, "EUR")).toBe("—");
+  });
+  it.each([null, "", "not a currency"])("does not guess a currency for %j", (currency) => {
+    expect(money(14000, currency)).toBe("14,000 minor units · currency unknown");
+  });
+});
 
 describe("API rate-limit metadata", () => {
   it("parses Retry-After seconds and HTTP dates without treating malformed numbers as dates", () => {

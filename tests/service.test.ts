@@ -183,6 +183,9 @@ describe("approval API and persistence", () => {
     ).toBe(500);
     const attempt = store.getAttempt("case1")!;
     expect(attempt.state).toBe("uncertain");
+    expect(service.detail("case1").attempt).toMatchObject({
+      retryOriginalAllowed: true, retryAllowed: false, currency: "USD", amountCents: 800,
+    });
     expect(
       (
         await app.request("/api/cases/case1", {
@@ -202,6 +205,31 @@ describe("approval API and persistence", () => {
     ).toBe(200);
     expect(paypal.refund.mock.calls[0]).toEqual(paypal.refund.mock.calls[1]);
     expect(store.getAttempt("case1")?.requestId).toBe(attempt.requestId);
+    expect(service.detail("case1").attempt?.retryOriginalAllowed).toBe(false);
+  });
+  it("reports the frozen request currency even after the current order changes", async () => {
+    const { service, paypal, store } = setup();
+    paypal.refund.mockRejectedValueOnce(new Error("Connection lost"));
+    await expect(service.approve("case1", reviewed(service))).rejects.toThrow("Connection lost");
+    store.saveOrder({ ...order, currency: "EUR" });
+    const detail = service.detail("case1");
+    expect(detail.order?.currency).toBe("EUR");
+    expect(detail.attempt).toMatchObject({ currency: "USD", retryOriginalAllowed: true });
+  });
+  it.each(["expired", "future", "invalid date", "pending", "receipt found"])("does not offer an original-request retry for %s attempts", async (scenario) => {
+    const { service, paypal, store } = setup();
+    paypal.refund.mockRejectedValueOnce(new Error("Connection lost"));
+    await expect(service.approve("case1", reviewed(service))).rejects.toThrow("Connection lost");
+    const attempt = store.getAttempt("case1")!;
+    if (scenario === "expired") { attempt.createdAt = new Date(Date.now() - 3_600_001).toISOString(); attempt.remoteAbsent = true; }
+    if (scenario === "future") attempt.createdAt = new Date(Date.now() + 60_000).toISOString();
+    if (scenario === "invalid date") attempt.createdAt = "unknown";
+    if (scenario === "pending") attempt.state = "pending";
+    if (scenario === "receipt found") attempt.refundId = "KNOWN-RECEIPT";
+    store.saveAttempt(attempt);
+    expect(service.detail("case1").attempt?.retryOriginalAllowed).toBe(false);
+    expect(service.detail("case1").attempt?.retryAllowed).toBe(scenario === "expired");
+    expect(paypal.refund).toHaveBeenCalledTimes(1);
   });
   it("rejects an over-policy edit without changing the saved amount", async () => {
     const { service, store } = setup();

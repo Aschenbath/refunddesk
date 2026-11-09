@@ -1,21 +1,27 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import type { DeskCase, Facts } from "../core/types.js";
 
 export function FactConfirmation({
   value,
   disabled,
   onEdit,
+  onPendingChange,
 }: {
   value: DeskCase;
   disabled: boolean;
   onEdit: (changes: Record<string, unknown>) => Promise<boolean>;
+  onPendingChange: (pending: boolean) => void;
 }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [dates, setDates] = useState({ promisedAt: "", deliveredAt: "" });
-  const dirtyDates = useRef(false);
-  useEffect(() => {
-    dirtyDates.current = false;
-  }, [value.id, value.orderId]);
+  const identity = `${value.id}:${value.orderId}`;
+  type Dates = NonNullable<Facts["deliveryDates"]>;
+  const [dateDraft, setDateDraft] = useState<{ identity: string; dates: Dates } | null>(null);
+  const [dateError, setDateError] = useState<{ identity: string; message: string } | null>(null);
+  const [savingDates, setSavingDates] = useState(false);
+  const draft = dateDraft?.identity === identity ? dateDraft : null;
+  const dates = draft?.dates || value.confirmedFacts.deliveryDates || value.proposedFacts.deliveryDates || {
+    promisedAt: value.order?.promisedAt || "", deliveredAt: value.order?.deliveredAt || "",
+  };
   useEffect(() => {
     const initial: Record<string, number> = {};
     for (const family of ["damagedItems", "returnedItems"] as const)
@@ -27,14 +33,6 @@ export function FactConfirmation({
             ?.quantity ||
           1;
     setQuantities(initial);
-    if (!dirtyDates.current)
-      setDates(
-        value.confirmedFacts.deliveryDates ||
-          value.proposedFacts.deliveryDates || {
-            promisedAt: value.order?.promisedAt || "",
-            deliveredAt: value.order?.deliveredAt || "",
-          },
-      );
   }, [value]);
   const save = (changes: Partial<Facts>) =>
     void onEdit({ confirmedFacts: { ...value.confirmedFacts, ...changes } });
@@ -43,6 +41,31 @@ export function FactConfirmation({
   const returned = clauses.some((id) => id.startsWith("P3"));
   const needsDates = returned || clauses.some((id) => id.startsWith("P2"));
   const family = damage ? "damagedItems" : "returnedItems";
+  useEffect(() => {
+    onPendingChange(needsDates && !!draft);
+    return () => onPendingChange(false);
+  }, [needsDates, draft, onPendingChange]);
+  const editDate = (field: keyof Dates, next: string) => {
+    setDateDraft({ identity, dates: { ...dates, [field]: next } });
+    setDateError(null);
+    onPendingChange(true);
+  };
+  const confirmDates = async (confirmed: boolean) => {
+    if (disabled || savingDates) return;
+    setDateDraft({ identity, dates });
+    setSavingDates(true);
+    setDateError(null);
+    onPendingChange(true);
+    try {
+      const saved = await onEdit({ confirmedFacts: { ...value.confirmedFacts, deliveryDates: confirmed ? dates : null } });
+      if (!saved) throw new Error("Dates were not saved");
+      setDateDraft((current) => current?.identity === identity ? null : current);
+    } catch {
+      setDateError({ identity, message: "Delivery dates were not confirmed. Your edits are kept; confirm them again before approving." });
+    } finally {
+      setSavingDates(false);
+    }
+  };
   return (
     <section className="fact-editor" aria-label="Confirm refund facts">
       <div className="section-label">
@@ -143,43 +166,32 @@ export function FactConfirmation({
               Promised date
               <input
                 type="date"
-                disabled={disabled}
+                disabled={disabled || savingDates}
                 value={dates.promisedAt}
-                onChange={(event) => {
-                  dirtyDates.current = true;
-                  setDates({ ...dates, promisedAt: event.target.value });
-                  if (value.confirmedFacts.deliveryDates)
-                    save({ deliveryDates: null });
-                }}
+                onChange={(event) => editDate("promisedAt", event.target.value)}
               />
             </label>
             <label>
               Delivered date
               <input
                 type="date"
-                disabled={disabled}
+                disabled={disabled || savingDates}
                 value={dates.deliveredAt}
-                onChange={(event) => {
-                  dirtyDates.current = true;
-                  setDates({ ...dates, deliveredAt: event.target.value });
-                  if (value.confirmedFacts.deliveryDates)
-                    save({ deliveryDates: null });
-                }}
+                onChange={(event) => editDate("deliveredAt", event.target.value)}
               />
             </label>
           </div>
           <label className="check-label">
             <input
               type="checkbox"
-              disabled={disabled || !dates.promisedAt || !dates.deliveredAt}
-              checked={!!value.confirmedFacts.deliveryDates}
-              onChange={(event) => {
-                dirtyDates.current = false;
-                save({ deliveryDates: event.target.checked ? dates : null });
-              }}
+              disabled={disabled || savingDates || !dates.promisedAt || !dates.deliveredAt}
+              checked={!draft && !!value.confirmedFacts.deliveryDates}
+              onChange={(event) => void confirmDates(event.target.checked)}
             />
             I verified these delivery dates
           </label>
+          {draft && <p className="helper">Confirm these dates to save them and recalculate the allowance before approving.</p>}
+          {dateError?.identity === identity && <p className="field-error" role="alert">{dateError.message}</p>}
         </>
       )}
     </section>

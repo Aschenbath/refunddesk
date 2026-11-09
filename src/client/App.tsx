@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { DeskCase, LedgerRow, Order } from "../core/types.js";
-import { api, money, ApiError } from "./api.js";
+import { api, ApiError } from "./api.js";
+import { formatMoneyTotals, sumMoney } from "./money-state.js";
 import { triageBatchCase, type BatchAction, type BatchReport } from "./review-batch.js";
 const QueueGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.QueueGrid })));
 const LedgerGrid = lazy(() => import("./Grid.js").then((module) => ({ default: module.LedgerGrid })));
@@ -189,7 +190,7 @@ export function App() {
       (value.check?.kind === "blocked" || value.status === "new"),
   ).length;
   const completed = cases.filter((value) => value.status === "refunded").length;
-  const refunded = ledger.reduce((sum, row) => sum + row.refundedCents, 0);
+  const refunded = sumMoney(ledger.map((row) => ({ cents: row.refundedCents, currency: row.currency })));
   const go = (next: typeof view) => {
     setView(next);
     setSearch("");
@@ -457,7 +458,7 @@ export function App() {
           </div>
           <div className="money-metric">
             <span>Total returned to customers</span>
-            <strong>{money(refunded)}</strong>
+            <strong>{formatMoneyTotals(refunded)}</strong>
             <small>
               {ledger.filter((row) => row.match === true).length} of{" "}
               {ledger.length} orders reconciled

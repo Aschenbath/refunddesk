@@ -5,6 +5,7 @@ import { policies } from "../core/policies.js";
 import { api, money, parseAmount } from "./api.js";
 import { Chip } from "./Chip.js";
 import { FactConfirmation } from "./FactConfirmation.js";
+import { caseApprovedCurrency, caseCheckCurrency, caseModelCurrency } from "./money-state.js";
 
 function Message({ text, spans }: { text: string; spans: string[] }) {
   const valid = [...new Set(spans)]
@@ -46,8 +47,10 @@ export function Drawer({
   onAction: (action: string, body?: unknown) => void;
 }) {
   const [amount, setAmount] = useState("");
-  const [reply, setReply] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [replyDraft, setReplyDraft] = useState<{ caseId: string; text: string } | null>(null);
+  const reply = replyDraft?.caseId === value.id ? replyDraft.text : value.replyDraft;
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [factsPending, setFactsPending] = useState(false);
   const [override, setOverride] = useState("");
   const [showMatch, setShowMatch] = useState(false);
   const [orderQuery, setOrderQuery] = useState("");
@@ -61,13 +64,17 @@ export function Drawer({
   const drawerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     setAmount(value.check ? (value.check.approvedCents / 100).toFixed(2) : "");
-    setReply(value.replyDraft);
     setOverride(value.duplicateOverride || "");
-    setCopied(false);
     setFormError("");
     setReportError("");
     setRetryConfirmed(false);
   }, [value]);
+  useEffect(() => {
+    // A successful save only consumes the exact draft that reached the server.
+    // Typing during that request and unrelated case refreshes keep the newer text.
+    if (!busy) setReplyDraft((draft) => draft?.caseId === value.id && draft.text === value.replyDraft ? null : draft);
+  }, [value.id, value.replyDraft, busy]);
+  useEffect(() => { setFactsPending(false); setCopiedText(null); }, [value.id, value.orderId]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
@@ -98,6 +105,8 @@ export function Drawer({
     !!value.attempt ||
     ["refunded", "rejected", "processing", "pending"].includes(value.status);
   const amountCents = parseAmount(amount);
+  const checkCurrency = caseCheckCurrency(value);
+  const approvedCurrency = caseApprovedCurrency(value);
   const replay = demoMode === "replay";
   const exportReport = async () => {
     if (busy || exportingRef.current) return;
@@ -182,7 +191,7 @@ export function Drawer({
                     : value.status === "pending" ? "PayPal refund pending" : "Refund completed with PayPal"}
                 </strong>
                 {value.refunds
-                  ?.filter((refund) => refund.caseId === value.id)
+                  ?.filter((refund) => refund.caseId === value.id && refund.orderId === value.orderId)
                   .map((refund) => (
                     <p key={refund.id}>
                       {money(refund.amountCents, refund.currency)} ·{" "}
@@ -212,7 +221,7 @@ export function Drawer({
             <p className="trace-model">{value.triageTrace.source === "live" ? `${value.triageTrace.provider} · ${value.triageTrace.model}` : value.triageTrace.source === "manual" ? "Owner manual review" : value.triageTrace.source === "unavailable" ? "Provider unavailable — keyword fallback" : "Demo fixture, not a live model call"}</p>
             <p className="helper">{value.triageTrace.model} · {value.triageTrace.latencyMs} ms · {value.triageTrace.attempts} attempts</p>
             {value.triageTrace.toolCalls.length ? <ol className="trace-tools">{value.triageTrace.toolCalls.map((call, index) => <li key={index}><strong>{call.name}</strong><span>Attempt {call.attempt}</span><code>{JSON.stringify(call.arguments)}</code><p>{call.summary}</p></li>)}</ol> : <p className="helper">No model tool calls were made.</p>}
-            <div className="amount-compare"><div><span>Model proposal</span><strong>{money(value.triageTrace.proposal.proposed_total)}</strong></div><div><span>Proposed-facts allowance</span><strong>{money(value.triageTrace.calculatorAllowanceCents ?? value.proposedCheck?.computedCents)}</strong></div></div>
+            <div className="amount-compare"><div><span>Model proposal</span><strong>{money(value.triageTrace.proposal.proposed_total, value.triageTrace.proposal.currency)}</strong></div><div><span>Proposed-facts allowance</span><strong>{value.triageTrace.calculatorAllowanceCents != null ? money(value.triageTrace.calculatorAllowanceCents, null) : money(value.proposedCheck?.computedCents, value.order?.currency ?? null)}</strong></div></div>
             <p className="helper">{value.triageTrace.evidenceSpans.length ? `Cited message spans: ${value.triageTrace.evidenceSpans.map((span) => `“${span}”`).join(", ")}` : "No verbatim message spans cited."} Owner-confirmed facts set the final allowance.</p>
           </details>}
           {!value.proposal ? (
@@ -245,7 +254,7 @@ export function Drawer({
                   <>
                     <div className="order-summary">
                       <strong>{value.order.id}</strong>
-                      <span>{money(value.order.capturedCents)} captured</span>
+                      <span>{money(value.order.capturedCents, value.order.currency)} captured</span>
                     </div>
                     <div className="order-lines">
                       {value.order.lines.map((line) => (
@@ -257,12 +266,12 @@ export function Drawer({
                               {line.sale ? " · Sale item" : ""}
                             </small>
                           </div>
-                          <span>{money(line.unitCents * line.quantity)}</span>
+                          <span>{money(line.unitCents * line.quantity, value.order!.currency)}</span>
                         </div>
                       ))}
                       <div>
                         <span>Shipping</span>
-                        <span>{money(value.order.shippingCents)}</span>
+                        <span>{money(value.order.shippingCents, value.order.currency)}</span>
                       </div>
                     </div>
                     <code className="capture-line">
@@ -307,7 +316,7 @@ export function Drawer({
                         {matchingOrders.map((order) => (
                           <option key={order.id} value={order.id}>
                             {order.id} · {order.customerName} ·{" "}
-                            {money(order.capturedCents)}
+                            {money(order.capturedCents, order.currency)}
                           </option>
                         ))}
                       </select>
@@ -384,12 +393,14 @@ export function Drawer({
                   value={value}
                   disabled={busy || locked}
                   onEdit={onEdit}
+                  onPendingChange={setFactsPending}
                 />
               )}
               <section>
                 <div className="section-label">
-                  Policy check <Chip kind={value.check?.kind || "pending"} />
+                  Policy check {factsPending ? <Chip kind="pending">Unsaved dates</Chip> : <Chip kind={value.check?.kind || "pending"} />}
                 </div>
+                {factsPending && <p className="helper">Amounts below use the last saved facts. Confirm the edited dates to update them before approving.</p>}
                 {value.check?.reasons.length ? (
                   <div className={`notice ${value.check.kind}`}>
                     <ul>
@@ -453,33 +464,33 @@ export function Drawer({
               </section>
               <section>
                 <div className="section-label">
-                  Refund amount <span>Integer cents · USD</span>
+                  Refund amount <span>Integer cents · {checkCurrency || "Currency unknown"}</span>
                 </div>
                 <div className="amount-compare">
                   <div>
                     <span>AI proposal</span>
-                    <strong>{money(value.check?.modelCents)}</strong>
+                    <strong>{money(value.check?.modelCents, caseModelCurrency(value))}</strong>
                   </div>
                   <div>
-                    <span>Confirmed allowance</span>
-                    <strong>{money(value.check?.computedCents)}</strong>
+                    <span>{factsPending ? "Last saved allowance" : "Confirmed allowance"}</span>
+                    <strong>{money(value.check?.computedCents, checkCurrency)}</strong>
                   </div>
                   <div>
                     <span>Refundable balance</span>
-                    <strong>{money(value.check?.remainderCents)}</strong>
+                    <strong>{money(value.check?.remainderCents, checkCurrency)}</strong>
                   </div>
                 </div>
                 <label className="amount-input">
                   Approved amount
                   <div>
-                    <span>$</span>
+                    {approvedCurrency === "USD" && <span>$</span>}
                     <input
                       aria-label="Approved amount"
                       value={amount}
                       disabled={busy || locked}
                       onChange={(event) => setAmount(event.target.value)}
                     />
-                    <span>USD</span>
+                    <span>{approvedCurrency || "Unknown"}</span>
                   </div>
                 </label>
                 {changed && !locked && (
@@ -518,6 +529,18 @@ export function Drawer({
                   >
                     Check PayPal
                   </button>
+                  {value.attempt.retryOriginalAllowed && (
+                    <>
+                      <p className="helper">Within the retry window, reuse the original request ID and frozen amount. This does not create a new refund request ID.</p>
+                      <button
+                        className="button secondary"
+                        disabled={busy || value.status === "processing"}
+                        onClick={() => onAction("approve", { revision: value.revision, approvedCents: value.attempt!.amountCents })}
+                      >
+                        Retry original request
+                      </button>
+                    </>
+                  )}
                   {value.attempt.retryAllowed && (
                     <>
                       <div className="notice blocked">
@@ -575,7 +598,11 @@ export function Drawer({
                 <textarea
                   aria-label="Customer reply draft"
                   value={reply}
-                  onChange={(event) => setReply(event.target.value)}
+                  onChange={(event) => {
+                    const text = event.target.value;
+                    setReplyDraft({ caseId: value.id, text });
+                    setCopiedText(null);
+                  }}
                   rows={5}
                 />
                 <div className="reply-actions">
@@ -585,7 +612,7 @@ export function Drawer({
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(reply);
-                        setCopied(true);
+                        setCopiedText(reply);
                         if (reply !== value.replyDraft)
                           await onEdit({ replyDraft: reply });
                       } catch {
@@ -595,7 +622,7 @@ export function Drawer({
                       }
                     }}
                   >
-                    {copied ? "✓ Copied" : "Copy reply"}
+                    {copiedText === reply ? "✓ Copied" : "Copy reply"}
                   </button>
                   {reply !== value.replyDraft && (
                     <button
@@ -646,6 +673,7 @@ export function Drawer({
                 className="button primary"
                 disabled={
                   busy ||
+                  factsPending ||
                   changed ||
                   !value.check ||
                   value.check.kind === "blocked" ||
@@ -658,7 +686,7 @@ export function Drawer({
                   })
                 }
               >
-                {busy ? "Working…" : `Approve ${money(amountCents)}`}
+                {busy ? "Working…" : `Approve ${money(amountCents, approvedCurrency)}`}
               </button>
             </>
           )}

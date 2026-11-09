@@ -9,6 +9,7 @@ import {
 } from "ag-grid-community";
 import type { DeskCase, LedgerRow } from "../core/types.js";
 import { money, age, parseAmount } from "./api.js";
+import { caseMoneyTotals, formatMoneyTotals, singleCurrencyCents, sumMoney, type MoneyTotal } from "./money-state.js";
 import { Chip } from "./Chip.js";
 import { csvCell, selectionSummary, outcomesCsv, type BatchAction, type BatchReport } from "./review-batch.js";
 import { memberships, viewNames, presetState, readLayout, writeLayout, clearLayout, matchesFilterModel, type QueueView } from "./grid-state.js";
@@ -35,7 +36,7 @@ function ChoiceFloating(props: CustomFloatingFilterDisplayProps & { choices: str
 }
 const choiceColumn = (choices: string[]) => ({ filter: { component: ChoiceFilter, doesFilterPass: ({ model, node, handlerParams }: DoesFilterPassParams<unknown, unknown, ChoiceModel>) => !model || model.values.includes(String(handlerParams.getValue(node))) }, filterParams: { choices }, floatingFilterComponent: ChoiceFloating, floatingFilterComponentParams: { choices } });
 const defaultColumn: ColDef = { sortable: true, resizable: true, filter: "agTextColumnFilter", floatingFilter: true, minWidth: 75 };
-const dollarFormat = ({ value }: { value: number | null | undefined }) => money(value == null ? value : Math.round(value * 100));
+const dollarsForTotals = (totals: MoneyTotal[]) => { const cents = singleCurrencyCents(totals); return cents === null ? null : cents / 100; };
 const colId = <T,>(column: ColDef<T>) => column.colId || column.field!;
 function baseState<T>(api: GridApi<T>, columns: ColDef<T>[]): GridState {
   return { ...api.getState(), columnOrder: { orderedColIds: columns.map(colId) },
@@ -60,7 +61,8 @@ function ColumnPicker<T>({ columns, getApi }: { columns: ColDef<T>[]; getApi: ()
 function SearchBox({ search, onSearch, label }: { search: string; onSearch: (value: string) => void; label: string }) {
   return <label className="search-box"><span>⌕</span><input aria-label={`Search ${label}`} placeholder={`Search ${label}…`} value={search} onChange={(event) => onSearch(event.target.value)} />{search && <button aria-label="Clear search" onClick={() => onSearch("")}>×</button>}</label>;
 }
-type QueueData = DeskCase & { modelDollars: number; allowedDollars: number; approvedDollars: number; refundedDollars: number; workflow: string; summary?: boolean };
+const queueAmounts = { modelDollars: "model", allowedDollars: "allowed", approvedDollars: "approved", refundedDollars: "refunded" } as const;
+type QueueData = DeskCase & { modelDollars: number | null; allowedDollars: number | null; approvedDollars: number | null; refundedDollars: number | null; amounts: ReturnType<typeof caseMoneyTotals>; workflow: string; summary?: boolean };
 export function QueueGrid({ cases, search, onSearch, onSelect, onAmount, onInvalidAmount, onBatch, busy, batchReport }: {
   cases: DeskCase[]; search: string; onSearch: (value: string) => void; onSelect: (id: string) => void; onAmount: (id: string, cents: number) => void; onInvalidAmount: () => void;
   onBatch: (action: BatchAction, ids: string[]) => void; busy: boolean; batchReport: BatchReport | null;
@@ -75,18 +77,17 @@ export function QueueGrid({ cases, search, onSearch, onSelect, onAmount, onInval
     const link = document.createElement("a"); link.href = url; link.download = "refunddesk-outcomes.csv"; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const rows = useMemo<QueueData[]>(() => cases.map((value) => ({ ...value,
-    modelDollars: (value.proposal?.proposed_total ?? 0) / 100,
-    allowedDollars: (value.check?.computedCents ?? 0) / 100,
-    approvedDollars: (value.check?.approvedCents ?? value.approvedCents ?? 0) / 100,
-    refundedDollars: (value.refunds?.filter((refund) => refund.caseId === value.id && refund.status === "COMPLETED").reduce((sum, refund) => sum + refund.amountCents, 0) ?? 0) / 100,
-    workflow: memberships(value).join(" | "),
-  })), [cases]);
+  const rows = useMemo<QueueData[]>(() => cases.map((value) => {
+    const amounts = caseMoneyTotals(value);
+    return { ...value, amounts, modelDollars: dollarsForTotals(amounts.model), allowedDollars: dollarsForTotals(amounts.allowed),
+      approvedDollars: dollarsForTotals(amounts.approved), refundedDollars: dollarsForTotals(amounts.refunded), workflow: memberships(value).join(" | ") };
+  }), [cases]);
   const totals = useCallback(() => {
     const api = layout.api.current; if (!api) return;
-    const sum = { id: "queue-total", summary: true, sender: "", modelDollars: 0, allowedDollars: 0, approvedDollars: 0, refundedDollars: 0 };
-    const visible = new Set<string>();
-    api.forEachNodeAfterFilter((node) => { if (node.data) { visible.add(node.data.id); for (const field of ["modelDollars", "allowedDollars", "approvedDollars", "refundedDollars"] as const) sum[field] += node.data[field]; } });
+    const sum = { id: "queue-total", summary: true, sender: "", amounts: { model: [], allowed: [], approved: [], refunded: [] } as QueueData["amounts"] };
+    const visible = new Set<string>(), visibleRows: QueueData[] = [];
+    api.forEachNodeAfterFilter((node) => { if (node.data) { visible.add(node.data.id); visibleRows.push(node.data); } });
+    for (const field of Object.values(queueAmounts)) sum.amounts[field] = sumMoney(visibleRows.flatMap((row) => row.amounts[field]));
     sum.sender = `${visible.size} cases · totals`; setCount(visible.size); setVisibleIds(visible); api.setGridOption("pinnedBottomRowData", [sum as QueueData]);
   }, [layout.api]);
   const columns = useMemo<ColDef<QueueData>[]>(() => [
@@ -95,8 +96,10 @@ export function QueueGrid({ cases, search, onSearch, onSelect, onAmount, onInval
     { headerName: "Subject", field: "subject", width: 230, hide: true },
     { headerName: "Intent", colId: "intent", width: 100, hide: true, valueGetter: (p) => p.data?.proposal?.intent || "" },
     ...(["modelDollars", "allowedDollars", "approvedDollars", "refundedDollars"] as const).map((field): ColDef<QueueData> => ({
-      headerName: { modelDollars: "Model ($)", allowedDollars: "Allowed ($)", approvedDollars: "Approved ($)", refundedDollars: "Refunded ($)" }[field],
-      field, colId: field === "approvedDollars" ? "amount" : field, width: field === "approvedDollars" ? 112 : 100, type: "numericColumn", filter: "agNumberColumnFilter", valueFormatter: dollarFormat,
+      headerName: { modelDollars: "Model", allowedDollars: "Allowed", approvedDollars: "Approved", refundedDollars: "Refunded" }[field],
+      field, colId: field === "approvedDollars" ? "amount" : field, width: field === "approvedDollars" ? 112 : 100, type: "numericColumn", filter: "agNumberColumnFilter",
+      wrapText: true, autoHeight: true, cellStyle: { lineHeight: "1.4", alignContent: "center" },
+      valueFormatter: (p) => p.data ? formatMoneyTotals(p.data.amounts[queueAmounts[field]]) : "—",
       ...(field === "approvedDollars" ? { cellEditor: "agTextCellEditor", editable: (p) => !busy && !p.node.rowPinned && !!p.data?.check && !p.data.attempt && !["refunded", "rejected", "processing", "pending", "failed"].includes(p.data.status) } : {}),
     })),
     { headerName: "Policy check", colId: "policy", width: 124, valueGetter: (p) => p.data?.summary ? "" : p.data?.check?.kind || "pending", ...choiceColumn(["pass", "adjusted", "blocked", "pending"]), cellRenderer: ({ value }: ICellRendererParams) => value ? <Chip kind={value} /> : null },
@@ -123,7 +126,7 @@ export function QueueGrid({ cases, search, onSearch, onSelect, onAmount, onInval
     <div className="grid-actions"><SearchBox search={search} onSearch={onSearch} label="queue" /><ColumnPicker columns={columns} getApi={() => layout.api.current} /><button className="text-button" onClick={() => { viewRef.current = "All"; setView("All"); layout.reset(); }}>Reset layout</button>
       {!selected.length && <button className="button secondary" onClick={() => layout.api.current?.exportDataAsCsv({ fileName: `refunddesk-${view.toLowerCase().replaceAll(" ", "-")}.csv`, columnKeys: columns.filter((column) => column.field !== "workflow").map(colId), skipPinnedBottom: true, processCellCallback: (p) => csvCell(p.api.getCellValue({ rowNode: p.node!, colKey: p.column, useFormatter: true })) })}>Export view CSV ↓</button>}</div></div>
     <div className="grid-wrap">{!!selected.length && <section className="batch-bar" aria-label="Review batch" aria-busy={busy}>
-      <div className="batch-summary" role="status"><strong>{summary.count} selected</strong><span>Model {money(summary.modelCents)}</span><span>Allowed {money(summary.allowedCents)}</span>
+      <div className="batch-summary" role="status"><strong>{summary.count} selected</strong><span>Model {formatMoneyTotals(summary.modelTotals)}</span><span>Allowed {formatMoneyTotals(summary.allowedTotals)}</span>
         <span>{summary.blocked} blocked · {summary.ready} ready · {summary.refunded} already refunded</span>{hiddenCount > 0 && <span>{hiddenCount} outside this view</span>}</div>
       <div className="batch-actions"><span>Approval stays per case · revision-bound</span><button className="button secondary" disabled={busy} onClick={() => onBatch("triage", selected.map((value) => value.id))}>Triage selected</button>
         <button className="button secondary" disabled={busy} onClick={() => onBatch("reconcile", selected.map((value) => value.id))}>Reconcile selected orders</button>
@@ -143,21 +146,29 @@ export function QueueGrid({ cases, search, onSearch, onSelect, onAmount, onInval
       getRowClass={(p) => p.data?.status === "refunded" ? "row-complete" : ""} overlayNoRowsTemplate="<div class='grid-empty'><strong>No cases match these filters.</strong><span>Choose All or reset the layout.</span></div>" />
       <div className="grid-foot"><span>{count} cases in this view · totals follow every filter</span><span>Double-click Approved to edit · Enter to review</span></div></div></>;
 }
-type LedgerData = LedgerRow & { capturedDollars: number; refundedDollars: number; netDollars: number; pendingDollars: number; summary?: boolean };
+type LedgerMoneyField = "capturedDollars" | "refundedDollars" | "netDollars" | "pendingDollars";
+type LedgerData = LedgerRow & { capturedDollars: number; refundedDollars: number; netDollars: number; pendingDollars: number; summary?: boolean; totals?: Record<LedgerMoneyField, MoneyTotal[]> };
 export function LedgerGrid({ rows, search, onSearch, onReconcile, busy }: { rows: LedgerRow[]; search: string; onSearch: (value: string) => void; onReconcile: (id: string) => void; busy: boolean }) {
   const layout = useLayout<LedgerData>("refunddesk.ledger.v1"), [count, setCount] = useState(rows.length);
   const data = useMemo(() => rows.map((row) => ({ ...row, capturedDollars: row.capturedCents / 100, refundedDollars: row.refundedCents / 100, netDollars: row.netCents / 100, pendingDollars: row.pendingCents / 100 })), [rows]);
   const totals = useCallback(() => {
     const api = layout.api.current; if (!api) return;
-    const sum = { orderId: "ledger-total", customer: "", summary: true, capturedDollars: 0, refundedDollars: 0, netDollars: 0, pendingDollars: 0 };
-    let currentCount = 0; api.forEachNodeAfterFilter((node) => { if (node.data) { currentCount++; for (const field of ["capturedDollars", "refundedDollars", "netDollars", "pendingDollars"] as const) sum[field] += node.data[field]; } });
+    const sum = { orderId: "ledger-total", customer: "", summary: true, totals: { capturedDollars: [], refundedDollars: [], netDollars: [], pendingDollars: [] } as Record<LedgerMoneyField, MoneyTotal[]> };
+    const visibleRows: LedgerData[] = []; api.forEachNodeAfterFilter((node) => { if (node.data) visibleRows.push(node.data); });
+    const fields = { capturedDollars: "capturedCents", refundedDollars: "refundedCents", netDollars: "netCents", pendingDollars: "pendingCents" } as const;
+    for (const field of Object.keys(fields) as LedgerMoneyField[]) sum.totals[field] = sumMoney(visibleRows.map((row) => ({ cents: row[fields[field]], currency: row.currency })));
+    const currentCount = visibleRows.length;
     sum.customer = `${currentCount} orders · totals`; setCount(currentCount); api.setGridOption("pinnedBottomRowData", [sum as LedgerData]);
   }, [layout.api]);
   const columns = useMemo<ColDef<LedgerData>[]>(() => [
     { headerName: "Order", field: "orderId", width: 135, valueGetter: (p) => p.data?.summary ? p.data.customer : p.data?.orderId, cellRenderer: ({ value }: ICellRendererParams<LedgerData>) => <strong>{value}</strong> },
     { headerName: "Customer", field: "customer", width: 150, minWidth: 130, flex: 1, valueFormatter: (p) => p.data?.summary ? "" : p.value },
     { headerName: "Capture", field: "captureId", width: 197, cellRenderer: ({ value }: ICellRendererParams) => <code>{value}</code> },
-    ...(["capturedDollars", "refundedDollars", "netDollars", "pendingDollars"] as const).map((field): ColDef<LedgerData> => ({ headerName: { capturedDollars: "Captured ($)", refundedDollars: "Refunded ($)", netDollars: "Net ($)", pendingDollars: "Pending ($)" }[field], field, width: 113, type: "numericColumn", filter: "agNumberColumnFilter", valueFormatter: dollarFormat })),
+    ...(["capturedDollars", "refundedDollars", "netDollars", "pendingDollars"] as const).map((field): ColDef<LedgerData> => ({
+      headerName: { capturedDollars: "Captured", refundedDollars: "Refunded", netDollars: "Net", pendingDollars: "Pending" }[field], field, width: 113, type: "numericColumn", filter: "agNumberColumnFilter",
+      wrapText: true, autoHeight: true, cellStyle: { lineHeight: "1.4", alignContent: "center" },
+      valueFormatter: (p) => p.data?.totals ? formatMoneyTotals(p.data.totals[field]) : money(p.value == null ? p.value : Math.round(p.value * 100), p.data?.currency ?? null),
+    })),
     { headerName: "PayPal status", field: "paypalStatus", width: 170, valueFormatter: (p) => p.value?.toLowerCase().replaceAll("_", " ") || "" },
     { headerName: "Match", colId: "match", width: 118, ...choiceColumn(["Matched", "Mismatch", "Unchecked", "Unexpected refund"]), valueGetter: (p) => p.data?.summary ? "" : p.data?.match === true ? "Matched" : p.data?.unexpectedRefundIds?.length ? "Unexpected refund" : p.data?.match === false ? "Mismatch" : "Unchecked", cellRenderer: ({ value }: ICellRendererParams) => value ? <Chip kind={value === "Matched" ? "pass" : "blocked"}>{value}</Chip> : null },
     { headerName: "Checked", field: "checkedAt", width: 98, hide: true, valueFormatter: (p) => age(p.value) },

@@ -59,6 +59,7 @@ export class DeskService {
     const candidates = candidatesFor(this.store, value);
     const refunds = order ? this.store.listRefunds(order.id) : [];
     const attempt = this.store.getAttempt(id);
+    const attemptAge = attempt ? Date.now() - Date.parse(attempt.createdAt) : NaN;
     const ambiguous =
       !value.manualOrder &&
       (identityConflict(this.store, value, order) ||
@@ -75,11 +76,15 @@ export class DeskService {
             state: attempt.state,
             createdAt: attempt.createdAt,
             amountCents: attempt.amountCents,
+            currency: attempt.snapshot?.order.currency,
+            retryOriginalAllowed:
+              attempt.state === "uncertain" &&
+              !attempt.refundId &&
+              attemptAge >= 0 && attemptAge <= IDEMPOTENCY_WINDOW_MS,
             retryAllowed:
               attempt.state === "uncertain" &&
               !!attempt.remoteAbsent &&
-              Date.now() - Date.parse(attempt.createdAt) >
-                IDEMPOTENCY_WINDOW_MS,
+              attemptAge > IDEMPOTENCY_WINDOW_MS,
           }
         : null,
     };
