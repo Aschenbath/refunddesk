@@ -2,14 +2,10 @@ services:
   - type: web
     name: refunddesk
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    disk:
-      name: refunddesk-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 24.18.0
@@ -21,17 +17,14 @@ services:
         generateValue: true
       - key: PUBLIC_ORIGIN
         sync: false
-      - key: PORT
-        value: 15480
-      - key: DB_PATH
-        value: /var/data/refunddesk.sqlite
       - key: PAYPAL_ENV
         value: sandbox
       - key: AI_MODE
         value: offline
-      # Set to replay for a key-free hosted demo. Owner authentication is still required.
+      # Hosted key-free replay demo (in-memory snapshot; no disk needed).
+      # Owner authentication is still required.
       - key: DEMO_MODE
-        value: ""
+        value: "replay"
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
